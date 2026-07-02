@@ -1,0 +1,256 @@
+.amap-route-page {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #f5f7fb;
+}
+
+.amap-route-map {
+  width: 100%;
+  height: 100%;
+}
+
+.amap-route-panel {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 10;
+  width: 380px;
+  max-height: calc(100vh - 48px);
+}
+
+.amap-route-card {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 44px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
+}
+
+.amap-route-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.amap-route-card h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  color: #101828;
+}
+
+.amap-route-card p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: #667085;
+}
+
+.amap-route-card__close {
+  display: none;
+  border: 0;
+  background: transparent;
+  font-size: 26px;
+  line-height: 26px;
+  color: #667085;
+}
+
+.amap-route-mode {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.amap-route-mode button,
+.amap-route-actions button {
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.amap-route-mode button {
+  background: #f2f4f7;
+  color: #344054;
+}
+
+.amap-route-mode button.is-active {
+  background: #1677ff;
+  color: #fff;
+}
+
+.amap-route-field {
+  display: block;
+  margin-top: 14px;
+}
+
+.amap-route-field span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #475467;
+}
+
+.amap-route-field input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  outline: none;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.amap-route-field input:focus {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12);
+}
+
+.amap-route-selected {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #667085;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.amap-route-actions {
+  display: grid;
+  grid-template-columns: 1fr 96px;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.amap-route-actions button:first-child {
+  background: #1677ff;
+  color: #fff;
+}
+
+.amap-route-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.amap-route-actions__secondary {
+  background: #f2f4f7;
+  color: #344054;
+}
+
+.amap-route-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.amap-route-summary div {
+  padding: 12px;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+
+.amap-route-summary strong,
+.amap-route-summary span {
+  display: block;
+}
+
+.amap-route-summary strong {
+  color: #101828;
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.amap-route-summary span {
+  margin-top: 2px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.amap-route-detail {
+  flex: 1;
+  min-height: 0;
+  margin-top: 14px;
+  overflow: auto;
+}
+
+.amap-route-detail:empty {
+  display: none;
+}
+
+.amap-route-mobile-trigger,
+.amap-route-mobile-mask {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .amap-route-panel {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 21;
+    width: min(88vw, 390px);
+    max-height: 100vh;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+  }
+
+  .amap-route-panel.is-open {
+    transform: translateX(0);
+  }
+
+  .amap-route-panel .amap-route-card {
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 18px 0 0 18px;
+  }
+
+  .amap-route-mobile-trigger {
+    display: block;
+    position: absolute;
+    right: 16px;
+    bottom: 28px;
+    z-index: 9;
+    width: 56px;
+    height: 56px;
+    border: 0;
+    border-radius: 50%;
+    background: #1677ff;
+    color: #fff;
+    font-size: 14px;
+    box-shadow: 0 10px 28px rgba(22, 119, 255, 0.35);
+  }
+
+  .amap-route-mobile-mask {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: rgba(15, 23, 42, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .amap-route-mobile-mask.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .amap-route-card__close {
+    display: block;
+  }
+}
