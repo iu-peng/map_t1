@@ -302,7 +302,7 @@
 .amap-route-config {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   max-height: inherit;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
@@ -311,71 +311,62 @@
 
 .amap-route-config section {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .amap-route-config h4 {
   margin: 0;
   color: #101828;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .amap-config-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.amap-config-list {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  align-items: stretch;
 }
 
-.amap-config-card,
-.amap-config-list button {
+.amap-config-card {
+  flex: 1 0 92px;
+  min-width: 92px;
+  max-width: calc(33.333% - 6px);
+  min-height: 74px;
+  padding: 8px;
   border: 1px solid #e4e7ec;
   border-radius: 14px;
   background: #fff;
   text-align: left;
   cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.amap-config-card {
-  padding: 10px;
+.amap-config-card:hover {
+  transform: translateY(-1px);
 }
 
-.amap-config-list button {
-  padding: 10px 12px;
-}
-
-.amap-config-card.is-active,
-.amap-config-list button.is-active {
+.amap-config-card.is-active {
   border-color: #1677ff;
   box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12);
 }
 
-.amap-config-card strong,
-.amap-config-list strong {
+.amap-config-card strong {
   display: block;
-  margin-top: 7px;
+  margin-top: 6px;
   color: #101828;
-  font-size: 13px;
-}
-
-.amap-config-card span,
-.amap-config-list span {
-  display: block;
-  margin-top: 2px;
-  color: #667085;
   font-size: 12px;
-  line-height: 17px;
+  line-height: 16px;
+  text-align: center;
 }
 
-.amap-map-preview {
+.amap-map-preview,
+.amap-route-preview,
+.amap-color-preview,
+.amap-marker-preview {
   position: relative;
   display: block;
-  height: 62px;
+  height: 34px;
   overflow: hidden;
   border-radius: 10px;
   background: #edf2f7;
@@ -389,8 +380,8 @@
 }
 
 .amap-map-preview::before {
-  inset: 26px -8px auto -8px;
-  height: 9px;
+  inset: 14px -6px auto -6px;
+  height: 6px;
   transform: rotate(-8deg);
   background: rgba(255, 255, 255, 0.92);
 }
@@ -398,8 +389,8 @@
 .amap-map-preview::after {
   left: 58%;
   top: -8px;
-  width: 9px;
-  height: 82px;
+  width: 6px;
+  height: 54px;
   transform: rotate(18deg);
   background: rgba(255, 255, 255, 0.72);
 }
@@ -410,6 +401,120 @@
 .amap-map-preview.is-dark { background: linear-gradient(135deg, #0f172a, #334155); }
 .amap-map-preview.is-darkblue { background: linear-gradient(135deg, #153e75, #2563eb); }
 .amap-map-preview.is-blue { background: linear-gradient(135deg, #1d4ed8, #7dd3fc); }
+
+.amap-route-preview {
+  background: #f8fafc;
+}
+
+.amap-route-preview::before,
+.amap-route-preview::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 15px;
+  height: 5px;
+  border-radius: 999px;
+}
+
+.amap-route-preview::before {
+  background: #e2e8f0;
+}
+
+.amap-route-preview::after {
+  background: #1677ff;
+}
+
+.amap-route-preview.is-outline::before {
+  top: 12px;
+  height: 11px;
+  background: #dbeafe;
+}
+
+.amap-route-preview.is-outline::after {
+  top: 15px;
+}
+
+.amap-route-preview.is-highlight::after {
+  height: 8px;
+  top: 13px;
+  box-shadow: 0 0 12px rgba(22, 119, 255, 0.45);
+}
+
+.amap-route-preview.is-simple::before {
+  display: none;
+}
+
+.amap-color-preview {
+  background: transparent;
+}
+
+.amap-color-preview::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 14px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--route-color, #3b82f6);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--route-color, #3b82f6) 42%, transparent);
+}
+
+.amap-marker-preview {
+  display: grid;
+  place-items: center;
+  background: #f8fafc;
+}
+
+.amap-marker-preview::before,
+.amap-marker-preview::after {
+  content: '';
+  display: block;
+}
+
+.amap-marker-preview.is-default::before {
+  width: 16px;
+  height: 16px;
+  border-radius: 50% 50% 50% 4px;
+  background: #1677ff;
+  transform: rotate(-45deg);
+}
+
+.amap-marker-preview.is-label::before {
+  width: 30px;
+  height: 16px;
+  border-radius: 999px;
+  background: #e0f2fe;
+}
+
+.amap-marker-preview.is-label::after {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #1677ff;
+}
+
+.amap-marker-preview.is-badge::before,
+.amap-marker-preview.is-badge::after {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 5px;
+  transform: rotate(-45deg);
+}
+
+.amap-marker-preview.is-badge::before {
+  left: 24px;
+  background: #12b76a;
+}
+
+.amap-marker-preview.is-badge::after {
+  right: 24px;
+  background: #f04438;
+}
 
 .amap-route-config__actions {
   grid-template-columns: 110px 1fr;
@@ -613,31 +718,18 @@
     gap: 8px;
   }
 
-  .amap-config-grid,
-  .amap-config-list {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 3px 3px 8px;
-    margin: 0 -3px;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
+  .amap-config-card {
+    flex-basis: calc(33.333% - 6px);
+    min-width: 96px;
+    max-width: calc(33.333% - 6px);
+    min-height: 70px;
   }
 
-  .amap-config-card,
-  .amap-config-list button {
-    flex: 0 0 148px;
-    min-width: 148px;
-    scroll-snap-align: start;
-  }
-
-  .amap-config-list button {
-    min-height: 78px;
-  }
-
-  .amap-map-preview {
-    height: 48px;
+  .amap-map-preview,
+  .amap-route-preview,
+  .amap-color-preview,
+  .amap-marker-preview {
+    height: 30px;
   }
 
   .amap-route-config__actions {
@@ -669,9 +761,9 @@
     grid-template-columns: 96px 1fr;
   }
 
-  .amap-config-card,
-  .amap-config-list button {
-    flex-basis: 142px;
-    min-width: 142px;
+  .amap-config-card {
+    flex-basis: calc(33.333% - 6px);
+    min-width: calc(33.333% - 6px);
+    max-width: calc(33.333% - 6px);
   }
 }
