@@ -13,17 +13,18 @@ function clickPlanButton(root: HTMLElement) {
   planButton.click();
 }
 
-function ensureDrawerOpen(root: HTMLElement) {
+function keepDrawerOpen(root: HTMLElement) {
   const panel = root.querySelector('.amap-route-panel');
   const trigger = root.querySelector<HTMLButtonElement>('.amap-route-mobile-trigger');
-  if (!panel || panel.classList.contains('is-open') || !trigger) return;
-  trigger.click();
+  if (!panel || panel.classList.contains('is-open')) return;
+  panel.classList.add('is-open');
+  trigger?.click();
 }
 
 export function NavigationModule() {
   const rootRef = useRef<HTMLElement | null>(null);
   const autoPlanTimerRef = useRef<number | null>(null);
-  const keepDrawerTimerRef = useRef<number | null>(null);
+  const keepDrawerUntilRef = useRef(0);
   const configOpenedWithRoutePointsRef = useRef(false);
 
   useEffect(() => {
@@ -37,33 +38,29 @@ export function NavigationModule() {
       }
     };
 
-    const clearKeepDrawerTimer = () => {
-      if (keepDrawerTimerRef.current) {
-        window.clearTimeout(keepDrawerTimerRef.current);
-        keepDrawerTimerRef.current = null;
-      }
+    const keepDrawerDuringPlanning = () => {
+      keepDrawerUntilRef.current = Date.now() + 4500;
+      keepDrawerOpen(root);
     };
 
-    const keepDrawerOpenAfterPlan = () => {
-      clearKeepDrawerTimer();
-      let count = 0;
-      const tick = () => {
-        count += 1;
-        ensureDrawerOpen(root);
-        if (count < 24) {
-          keepDrawerTimerRef.current = window.setTimeout(tick, 160);
-        } else {
-          keepDrawerTimerRef.current = null;
-        }
-      };
-      keepDrawerTimerRef.current = window.setTimeout(tick, 160);
+    const observer = new MutationObserver(() => {
+      if (Date.now() > keepDrawerUntilRef.current) return;
+      keepDrawerOpen(root);
+    });
+
+    const observePanel = () => {
+      const panel = root.querySelector('.amap-route-panel');
+      if (panel) observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
     };
+
+    observePanel();
 
     const scheduleAutoPlan = (force = false) => {
       clearAutoPlanTimer();
       autoPlanTimerRef.current = window.setTimeout(() => {
         autoPlanTimerRef.current = null;
         if (!force && !hasReadyRoutePoints(root)) return;
+        keepDrawerDuringPlanning();
         clickPlanButton(root);
       }, 120);
     };
@@ -72,8 +69,13 @@ export function NavigationModule() {
       const target = event.target as HTMLElement | null;
       if (!target) return;
 
+      if (target.closest('.amap-route-card__close') || target.closest('.amap-route-mobile-mask')) {
+        keepDrawerUntilRef.current = 0;
+        return;
+      }
+
       if (target.closest('.amap-route-actions button:first-child')) {
-        keepDrawerOpenAfterPlan();
+        keepDrawerDuringPlanning();
         return;
       }
 
@@ -97,7 +99,7 @@ export function NavigationModule() {
     root.addEventListener('click', handleClick);
     return () => {
       clearAutoPlanTimer();
-      clearKeepDrawerTimer();
+      observer.disconnect();
       root.removeEventListener('click', handleClick);
     };
   }, []);
