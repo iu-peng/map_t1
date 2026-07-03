@@ -23,6 +23,7 @@ export default function App() {
         <nav className="space-y-2">
           {APP_MODULES.map((item) => {
             const active = item.id === activeModuleId;
+            const Icon = item.icon;
             return (
               <Button
                 key={item.id}
@@ -34,8 +35,8 @@ export default function App() {
                 )}
                 onClick={() => setActiveModuleId(item.id)}
               >
-                <span className={cn('grid h-9 w-9 place-items-center rounded-xl bg-white/10 text-base', active && 'bg-blue-600 text-white')}>
-                  {item.icon}
+                <span className={cn('grid h-9 w-9 place-items-center rounded-xl bg-white/10', active && 'bg-blue-600 text-white')}>
+                  <Icon className="h-4 w-4" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold">{item.label}</span>
@@ -47,27 +48,28 @@ export default function App() {
         </nav>
       </aside>
 
-      <main className="relative min-w-0 flex-1 overflow-hidden bg-slate-100">
+      <main className="relative z-10 min-w-0 flex-1 overflow-hidden bg-slate-100">
         <div className="absolute inset-x-0 top-0 bottom-[calc(74px+env(safe-area-inset-bottom))] min-h-0 overflow-hidden md:bottom-0">
           <ActiveModule />
         </div>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-[2147482000] border-t bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(15,23,42,0.14)] backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(15,23,42,0.14)] backdrop-blur md:hidden">
         <div className="grid grid-cols-5 gap-1">
           {APP_MODULES.map((item) => {
             const active = item.id === activeModuleId;
+            const Icon = item.icon;
             return (
               <button
                 key={item.id}
                 type="button"
                 className={cn(
                   'flex h-14 flex-col items-center justify-center rounded-2xl text-xs font-medium text-slate-500 transition-colors',
-                  active && 'bg-blue-600 text-white shadow-lg shadow-blue-600/20',
+                  active ? 'text-blue-600' : 'hover:text-slate-900',
                 )}
                 onClick={() => setActiveModuleId(item.id)}
               >
-                <span className="text-lg leading-none">{item.icon}</span>
+                <Icon className={cn('h-5 w-5', active && 'stroke-[2.6]')} aria-hidden="true" />
                 <span className="mt-1">{item.label}</span>
               </button>
             );
