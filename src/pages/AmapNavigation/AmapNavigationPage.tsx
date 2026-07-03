@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Navigation2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { createRoutePlanner, formatDistance, formatDuration, loadAMap } from '../../utils/amapLoader';
 import type { RouteEffect, TravelMode } from '../../utils/amapLoader';
 import './AmapNavigationPage.css';
@@ -576,7 +578,7 @@ export default function AmapNavigationPage() {
         });
 
         map.addControl(new AMap.Scale());
-        map.addControl(new AMap.ToolBar({ position: { right: '24px', top: '24px' } }));
+        map.addControl(new AMap.ToolBar({ position: { right: '16px', bottom: '96px' } }));
 
         if (defaultCity !== '全国') {
           map.setCity?.(defaultCity, () => {
@@ -662,82 +664,84 @@ export default function AmapNavigationPage() {
 
   const renderConfigPanel = () => (
     <div className="amap-route-config">
-      <div className="amap-route-config__header">
-        <div>
-          <h3>样式配置</h3>
-          <p>选择后确认应用，路线颜色会在重新规划后生效。</p>
+      <div className="amap-route-config__body">
+        <div className="amap-route-config__header">
+          <div>
+            <h3>样式配置</h3>
+            <p>选择后确认应用，路线颜色会在重新规划后生效。</p>
+          </div>
+          <button type="button" onClick={() => setConfigOpen(false)}>×</button>
         </div>
-        <button type="button" onClick={() => setConfigOpen(false)}>×</button>
+
+        <section>
+          <h4>地图底图</h4>
+          <div className="amap-config-grid">
+            {MAP_STYLE_OPTIONS.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                className={`amap-config-card ${draftConfig.mapStyle === item.value ? 'is-active' : ''}`}
+                onClick={() => setDraftConfig((prev) => ({ ...prev, mapStyle: item.value }))}
+              >
+                <i className={`amap-map-preview is-${item.preview}`} />
+                <strong>{item.label}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h4>路线效果</h4>
+          <div className="amap-config-grid">
+            {ROUTE_EFFECT_OPTIONS.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                className={`amap-config-card is-route-effect ${draftConfig.routeEffect === item.value ? 'is-active' : ''}`}
+                onClick={() => setDraftConfig((prev) => ({ ...prev, routeEffect: item.value }))}
+              >
+                <i className={`amap-route-preview is-${item.preview}`} />
+                <strong>{item.label}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h4>路线颜色</h4>
+          <div className="amap-config-grid">
+            {ROUTE_COLOR_OPTIONS.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                className={`amap-config-card is-route-color ${draftConfig.routeColor === item.value ? 'is-active' : ''}`}
+                style={{ '--route-color': item.color } as Record<string, string>}
+                onClick={() => setDraftConfig((prev) => ({ ...prev, routeColor: item.value }))}
+              >
+                <i className="amap-color-preview" />
+                <strong>{item.label}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h4>起终点</h4>
+          <div className="amap-config-grid">
+            {MARKER_STYLE_OPTIONS.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                className={`amap-config-card is-marker ${draftConfig.markerStyle === item.value ? 'is-active' : ''}`}
+                onClick={() => setDraftConfig((prev) => ({ ...prev, markerStyle: item.value }))}
+              >
+                <i className={`amap-marker-preview is-${item.preview}`} />
+                <strong>{item.label}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
-
-      <section>
-        <h4>地图底图</h4>
-        <div className="amap-config-grid">
-          {MAP_STYLE_OPTIONS.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              className={`amap-config-card ${draftConfig.mapStyle === item.value ? 'is-active' : ''}`}
-              onClick={() => setDraftConfig((prev) => ({ ...prev, mapStyle: item.value }))}
-            >
-              <i className={`amap-map-preview is-${item.preview}`} />
-              <strong>{item.label}</strong>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h4>路线效果</h4>
-        <div className="amap-config-grid">
-          {ROUTE_EFFECT_OPTIONS.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              className={`amap-config-card is-route-effect ${draftConfig.routeEffect === item.value ? 'is-active' : ''}`}
-              onClick={() => setDraftConfig((prev) => ({ ...prev, routeEffect: item.value }))}
-            >
-              <i className={`amap-route-preview is-${item.preview}`} />
-              <strong>{item.label}</strong>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h4>路线颜色</h4>
-        <div className="amap-config-grid">
-          {ROUTE_COLOR_OPTIONS.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              className={`amap-config-card is-route-color ${draftConfig.routeColor === item.value ? 'is-active' : ''}`}
-              style={{ '--route-color': item.color } as Record<string, string>}
-              onClick={() => setDraftConfig((prev) => ({ ...prev, routeColor: item.value }))}
-            >
-              <i className="amap-color-preview" />
-              <strong>{item.label}</strong>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h4>起终点</h4>
-        <div className="amap-config-grid">
-          {MARKER_STYLE_OPTIONS.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              className={`amap-config-card is-marker ${draftConfig.markerStyle === item.value ? 'is-active' : ''}`}
-              onClick={() => setDraftConfig((prev) => ({ ...prev, markerStyle: item.value }))}
-            >
-              <i className={`amap-marker-preview is-${item.preview}`} />
-              <strong>{item.label}</strong>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <div className="amap-route-config__actions">
         <button type="button" onClick={() => setDraftConfig(DEFAULT_STYLE_CONFIG)}>恢复默认</button>
@@ -843,7 +847,15 @@ export default function AmapNavigationPage() {
     <div className="amap-route-page">
       <div className="amap-route-map" ref={mapContainerRef} />
       <div className={`amap-route-panel ${mobileOpen ? 'is-open' : ''}`}>{panel}</div>
-      <button className="amap-route-mobile-trigger" type="button" onClick={() => setMobileOpen(true)} aria-label="打开路线面板">路线</button>
+      <Button
+        className="amap-route-mobile-trigger"
+        type="button"
+        size="icon"
+        onClick={() => setMobileOpen(true)}
+        aria-label="打开路线面板"
+      >
+        <Navigation2 className="h-5 w-5" aria-hidden="true" />
+      </Button>
       <div className={`amap-route-mobile-mask ${mobileOpen ? 'is-open' : ''}`} onClick={() => setMobileOpen(false)} />
     </div>
   );
