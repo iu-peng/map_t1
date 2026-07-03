@@ -4,7 +4,7 @@
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  background: #0f172a;
+  background: #10233f;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -415,6 +415,7 @@
 .amap-map-preview.is-fresh { background: linear-gradient(135deg, #e0f2fe, #f8fafc); }
 .amap-map-preview.is-smoke { background: linear-gradient(135deg, #e5e7eb, #f8fafc); }
 .amap-map-preview.is-dark { background: linear-gradient(135deg, #0f172a, #334155); }
+.amap-map-preview.is-darkblue { background: linear-gradient(135deg, #153e75, #2563eb); }
 .amap-map-preview.is-macaron { background: linear-gradient(135deg, #fde2e4, #d8f3dc); }
 .amap-map-preview.is-blue { background: linear-gradient(135deg, #1d4ed8, #7dd3fc); }
 
@@ -486,7 +487,7 @@
   display: none;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
   .amap-route-panel {
     position: fixed;
     top: 0;
@@ -657,11 +658,12 @@
   }
 
   .amap-route-mobile-trigger {
-    display: block;
+    display: grid;
+    place-items: center;
     position: fixed;
     right: max(16px, env(safe-area-inset-right));
     bottom: calc(104px + env(safe-area-inset-bottom));
-    z-index: 30;
+    z-index: 60;
     width: 58px;
     height: 58px;
     border: 0;
@@ -670,6 +672,8 @@
     color: #fff;
     font-size: 14px;
     box-shadow: 0 10px 28px rgba(22, 119, 255, 0.35);
+    pointer-events: auto;
+    transform: translateZ(0);
   }
 
   .amap-route-mobile-mask {
