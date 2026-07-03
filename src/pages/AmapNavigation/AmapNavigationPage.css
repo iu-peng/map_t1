@@ -4,10 +4,11 @@
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  background: #f5f7fb;
+  background: #0f172a;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .amap-route-map {
@@ -27,6 +28,7 @@
 .amap-route-card {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   max-height: inherit;
   padding: 18px;
   border-radius: 18px;
@@ -256,16 +258,28 @@
 }
 
 .amap-route-detail {
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 auto;
+  min-height: 132px;
+  max-height: 44vh;
   margin-top: 14px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+  pointer-events: auto;
 }
 
 .amap-route-detail:empty {
   display: none;
+}
+
+.amap-route-detail .amap-lib-driving,
+.amap-route-detail .amap-lib-transfer,
+.amap-route-detail .amap-lib-walking,
+.amap-route-detail .amap-lib-riding {
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .amap-route-config {
@@ -454,6 +468,11 @@
   transform: rotate(-45deg);
 }
 
+.amap-route-badge-marker span {
+  display: block;
+  transform: rotate(45deg);
+}
+
 .amap-route-badge-marker.is-start {
   background: #12b76a;
 }
@@ -581,8 +600,11 @@
   }
 
   .amap-route-detail {
+    flex: 0 0 auto;
+    min-height: 168px;
+    max-height: 36vh;
     margin-top: 10px;
-    max-height: 42vh;
+    padding-bottom: 18px;
   }
 
   .amap-route-config {
