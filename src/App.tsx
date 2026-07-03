@@ -49,7 +49,7 @@ export default function App() {
       </aside>
 
       <main className="relative min-w-0 flex-1 overflow-hidden bg-slate-100">
-        <div className="absolute inset-0 min-h-0 overflow-hidden">
+        <div className="absolute inset-x-0 top-0 bottom-[calc(74px+env(safe-area-inset-bottom))] min-h-0 overflow-hidden md:bottom-0">
           <ActiveModule />
         </div>
       </main>
