@@ -117,6 +117,50 @@
   box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12);
 }
 
+.amap-route-suggestions {
+  max-height: 220px;
+  margin-top: 6px;
+  overflow: auto;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+}
+
+.amap-route-suggestion {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid #f2f4f7;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.amap-route-suggestion:last-child {
+  border-bottom: 0;
+}
+
+.amap-route-suggestion:hover {
+  background: #f8fafc;
+}
+
+.amap-route-suggestion strong {
+  display: block;
+  color: #101828;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.amap-route-suggestion span {
+  display: block;
+  margin: 2px 0 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .amap-route-selected {
   display: grid;
   gap: 4px;
@@ -221,7 +265,7 @@
     max-height: 100dvh;
     padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
     border-radius: 18px 0 0 18px;
-    overflow: hidden;
+    overflow: auto;
   }
 
   .amap-route-mobile-trigger {
@@ -258,6 +302,10 @@
 
   .amap-route-card__close {
     display: block;
+  }
+
+  .amap-route-suggestions {
+    max-height: 180px;
   }
 }
 
