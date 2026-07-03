@@ -42,13 +42,18 @@ export default function App() {
                 variant="ghost"
                 title={sidebarCollapsed ? item.label : undefined}
                 className={cn(
-                  'h-auto w-full rounded-none text-left text-slate-400 transition-all duration-300 hover:bg-white/10 hover:text-white',
+                  'group h-auto w-full rounded-none text-left text-slate-400 transition-all duration-300 hover:bg-transparent hover:text-slate-300',
                   sidebarCollapsed ? 'h-14 justify-center px-0 py-0' : 'justify-start gap-3 rounded-2xl px-3 py-3',
-                  active && 'bg-transparent text-blue-400 hover:bg-white/10 hover:text-blue-300',
+                  active && 'bg-transparent text-blue-400 hover:bg-transparent hover:text-blue-300',
                 )}
                 onClick={() => setActiveModuleId(item.id)}
               >
-                <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10 text-slate-400', active && 'text-blue-400')}>
+                <span
+                  className={cn(
+                    'grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10 text-slate-400 transition-colors duration-200 group-hover:bg-blue-500/15 group-hover:text-blue-300',
+                    active && 'bg-blue-500/20 text-blue-400 group-hover:bg-blue-500/25 group-hover:text-blue-300',
+                  )}
+                >
                   <Icon className={cn('h-4 w-4', active && 'stroke-[2.7]')} aria-hidden="true" />
                 </span>
                 <span
