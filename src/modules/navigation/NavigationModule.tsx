@@ -13,9 +13,17 @@ function clickPlanButton(root: HTMLElement) {
   planButton.click();
 }
 
+function ensureDrawerOpen(root: HTMLElement) {
+  const panel = root.querySelector('.amap-route-panel');
+  const trigger = root.querySelector<HTMLButtonElement>('.amap-route-mobile-trigger');
+  if (!panel || panel.classList.contains('is-open') || !trigger) return;
+  trigger.click();
+}
+
 export function NavigationModule() {
   const rootRef = useRef<HTMLElement | null>(null);
   const autoPlanTimerRef = useRef<number | null>(null);
+  const keepDrawerTimerRef = useRef<number | null>(null);
   const configOpenedWithRoutePointsRef = useRef(false);
 
   useEffect(() => {
@@ -27,6 +35,28 @@ export function NavigationModule() {
         window.clearTimeout(autoPlanTimerRef.current);
         autoPlanTimerRef.current = null;
       }
+    };
+
+    const clearKeepDrawerTimer = () => {
+      if (keepDrawerTimerRef.current) {
+        window.clearTimeout(keepDrawerTimerRef.current);
+        keepDrawerTimerRef.current = null;
+      }
+    };
+
+    const keepDrawerOpenAfterPlan = () => {
+      clearKeepDrawerTimer();
+      let count = 0;
+      const tick = () => {
+        count += 1;
+        ensureDrawerOpen(root);
+        if (count < 24) {
+          keepDrawerTimerRef.current = window.setTimeout(tick, 160);
+        } else {
+          keepDrawerTimerRef.current = null;
+        }
+      };
+      keepDrawerTimerRef.current = window.setTimeout(tick, 160);
     };
 
     const scheduleAutoPlan = (force = false) => {
@@ -41,6 +71,11 @@ export function NavigationModule() {
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target) return;
+
+      if (target.closest('.amap-route-actions button:first-child')) {
+        keepDrawerOpenAfterPlan();
+        return;
+      }
 
       if (target.closest('.amap-route-mode button')) {
         scheduleAutoPlan(false);
@@ -62,6 +97,7 @@ export function NavigationModule() {
     root.addEventListener('click', handleClick);
     return () => {
       clearAutoPlanTimer();
+      clearKeepDrawerTimer();
       root.removeEventListener('click', handleClick);
     };
   }, []);
