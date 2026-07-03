@@ -305,6 +305,7 @@
   gap: 14px;
   max-height: inherit;
   overflow: auto;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
@@ -518,10 +519,12 @@
 
 .amap-route-config__actions {
   grid-template-columns: 110px 1fr;
-  position: sticky;
-  bottom: 0;
-  padding-top: 8px;
-  background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.96) 28%);
+  position: static;
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid #eef2f7;
+  background: #fff;
 }
 
 .amap-route-badge-marker {
@@ -711,7 +714,7 @@
 
   .amap-route-config {
     gap: 12px;
-    padding-bottom: 104px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
   }
 
   .amap-route-config section {
@@ -733,10 +736,13 @@
   }
 
   .amap-route-config__actions {
-    z-index: 6;
-    padding: 10px 0 calc(88px + env(safe-area-inset-bottom));
-    margin-bottom: calc(-88px - env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.98) 24%);
+    position: static;
+    z-index: auto;
+    margin-top: 4px;
+    margin-bottom: 0;
+    padding: 10px 0 0;
+    border-top: 1px solid #eef2f7;
+    background: #fff;
   }
 
   .amap-route-config__actions button {
