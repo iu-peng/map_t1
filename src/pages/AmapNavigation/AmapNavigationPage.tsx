@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoutePlanner, formatDistance, formatDuration, loadAMap } from '../../utils/amapLoader';
-import type { TravelMode } from '../../utils/amapLoader';
+import type { RouteEffect, TravelMode } from '../../utils/amapLoader';
 import './AmapNavigationPage.css';
 
 type PoiPoint = {
@@ -22,20 +22,49 @@ type RouteSummary = {
   time?: number;
 };
 
-type RouteStep = {
-  instruction: string;
-  road?: string;
-  distance?: number;
+type MarkerStyle = 'default' | 'label' | 'badge';
+
+type StyleConfig = {
+  mapStyle: string;
+  routeEffect: RouteEffect;
+  markerStyle: MarkerStyle;
 };
 
 const MODE_OPTIONS: Array<{ label: string; value: TravelMode }> = [
   { label: '驾车', value: 'driving' },
+  { label: '公交', value: 'transit' },
   { label: '骑行', value: 'riding' },
   { label: '步行', value: 'walking' },
 ];
 
+const MAP_STYLE_OPTIONS = [
+  { label: '标准', desc: '信息完整，接近高德默认', value: 'amap://styles/normal', preview: 'normal' },
+  { label: '清新', desc: '浅色、干净，适合 H5', value: 'amap://styles/fresh', preview: 'fresh' },
+  { label: '灰白', desc: '商务低干扰风格', value: 'amap://styles/whitesmoke', preview: 'smoke' },
+  { label: '深色', desc: '夜间科技感', value: 'amap://styles/dark', preview: 'dark' },
+  { label: '马卡龙', desc: '柔和年轻化', value: 'amap://styles/macaron', preview: 'macaron' },
+  { label: '蓝色', desc: '偏导航产品感', value: 'amap://styles/blue', preview: 'blue' },
+];
+
+const ROUTE_EFFECT_OPTIONS: Array<{ label: string; desc: string; value: RouteEffect }> = [
+  { label: '默认路线', desc: '使用高德插件默认路线样式，最稳定', value: 'default' },
+  { label: '实时路况', desc: '驾车模式展示路况颜色，其他模式仍使用默认线', value: 'traffic' },
+  { label: '简洁路线', desc: '减少轮廓效果，路线更清爽', value: 'simple' },
+];
+
+const MARKER_STYLE_OPTIONS: Array<{ label: string; desc: string; value: MarkerStyle }> = [
+  { label: '默认图标', desc: '高德默认 Marker，最原生', value: 'default' },
+  { label: '文字标签', desc: '默认图标 + 起点/终点文字', value: 'label' },
+  { label: '彩色徽标', desc: '绿色起点、红色终点，更醒目', value: 'badge' },
+];
+
+const DEFAULT_STYLE_CONFIG: StyleConfig = {
+  mapStyle: 'amap://styles/normal',
+  routeEffect: 'default',
+  markerStyle: 'label',
+};
+
 const FALLBACK_CENTER: [number, number] = [116.397428, 39.90923];
-const MODERN_MAP_STYLE = 'amap://styles/fresh';
 
 function normalizeCity(value?: string) {
   return value?.trim() || '全国';
@@ -54,10 +83,6 @@ function parseLngLat(value: string): [number, number] | null {
 function normalizeAddress(value: unknown) {
   if (Array.isArray(value)) return value.join('');
   return typeof value === 'string' ? value : '';
-}
-
-function stripHtml(value: unknown) {
-  return normalizeAddress(value).replace(/<[^>]+>/g, '').trim();
 }
 
 function toLngLat(location: any): [number, number] | undefined {
@@ -103,44 +128,17 @@ function getSuggestionText(item: AddressSuggestion) {
   return [item.district, item.address].filter(Boolean).join(' · ') || '点击选择此地点';
 }
 
-function getRouteSegments(route: any) {
-  const candidates = [route?.steps, route?.rides, route?.walks, route?.paths];
-  return candidates.find(Array.isArray) || [];
+function createBadgeMarkerContent(type: 'start' | 'end') {
+  return `<div class="amap-route-badge-marker ${type === 'start' ? 'is-start' : 'is-end'}">${type === 'start' ? '起' : '终'}</div>`;
 }
 
-function getRoutePath(route: any): [number, number][] {
-  const directPath = Array.isArray(route?.path) ? route.path : [];
-  if (directPath.length > 0) return directPath.map(toLngLat).filter(Boolean) as [number, number][];
-
-  return getRouteSegments(route)
-    .flatMap((step: any) => (Array.isArray(step?.path) ? step.path : []))
-    .map(toLngLat)
-    .filter(Boolean) as [number, number][];
-}
-
-function getRouteSteps(route: any): RouteStep[] {
-  return getRouteSegments(route)
-    .map((step: any) => ({
-      instruction: stripHtml(step?.instruction || step?.action || step?.road || '继续前行'),
-      road: stripHtml(step?.road),
-      distance: Number(step?.distance),
-    }))
-    .filter((step: RouteStep) => step.instruction)
-    .slice(0, 12);
-}
-
-function createMarkerContent(type: 'start' | 'end') {
-  const isStart = type === 'start';
-  return `
-    <div class="amap-custom-marker ${isStart ? 'is-start' : 'is-end'}">
-      <span class="amap-custom-marker__pin">${isStart ? '起' : '终'}</span>
-      <span class="amap-custom-marker__pulse"></span>
-    </div>
-  `;
+function getFirstRoute(result: any) {
+  return result?.routes?.[0] || result?.plans?.[0] || result?.route || null;
 }
 
 export default function AmapNavigationPage() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const routePanelRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const amapRef = useRef<any>(null);
   const plannerRef = useRef<any>(null);
@@ -148,7 +146,6 @@ export default function AmapNavigationPage() {
   const autoCompleteRef = useRef<any>(null);
   const startMarkerRef = useRef<any>(null);
   const endMarkerRef = useRef<any>(null);
-  const routeOverlayRefs = useRef<any[]>([]);
   const suggestionRequestRef = useRef({ start: 0, end: 0 });
 
   const [mode, setMode] = useState<TravelMode>('driving');
@@ -161,19 +158,22 @@ export default function AmapNavigationPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('请输入起点和终点后开始路线规划');
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
-  const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [styleConfig, setStyleConfig] = useState<StyleConfig>(DEFAULT_STYLE_CONFIG);
+  const [draftConfig, setDraftConfig] = useState<StyleConfig>(DEFAULT_STYLE_CONFIG);
 
   const defaultCity = useMemo(() => normalizeCity(import.meta.env.VITE_AMAP_DEFAULT_CITY), []);
   const startPlaceholder = defaultCity === '全国' ? '请输入起点，如 北京南站' : `请输入起点，如 ${defaultCity}站`;
   const endPlaceholder = defaultCity === '全国' ? '请输入终点，如 天安门' : `请输入终点，如 ${defaultCity}市政府`;
 
-  const clearRouteOverlays = useCallback(() => {
+  const clearSelectionMarkers = useCallback(() => {
     const map = mapRef.current;
-    if (map && routeOverlayRefs.current.length > 0) {
-      routeOverlayRefs.current.forEach((overlay) => map.remove(overlay));
-    }
-    routeOverlayRefs.current = [];
+    if (!map) return;
+    if (startMarkerRef.current) map.remove(startMarkerRef.current);
+    if (endMarkerRef.current) map.remove(endMarkerRef.current);
+    startMarkerRef.current = null;
+    endMarkerRef.current = null;
   }, []);
 
   const resolveDefaultCityCenter = useCallback((AMap: any, city: string): Promise<[number, number]> => {
@@ -192,7 +192,7 @@ export default function AmapNavigationPage() {
     });
   }, []);
 
-  const setMarker = useCallback((type: 'start' | 'end', poi: PoiPoint) => {
+  const setMarker = useCallback((type: 'start' | 'end', poi: PoiPoint, markerStyle = styleConfig.markerStyle) => {
     const AMap = amapRef.current;
     const map = mapRef.current;
     if (!AMap || !map) return;
@@ -200,65 +200,36 @@ export default function AmapNavigationPage() {
     const oldMarker = type === 'start' ? startMarkerRef.current : endMarkerRef.current;
     if (oldMarker) map.remove(oldMarker);
 
-    const marker = new AMap.Marker({
+    const markerOptions: Record<string, any> = {
       position: poi.lnglat,
       title: poi.name,
-      content: createMarkerContent(type),
-      offset: new AMap.Pixel(-18, -48),
       zIndex: type === 'start' ? 120 : 121,
-    });
+    };
 
+    if (markerStyle === 'label') {
+      markerOptions.label = {
+        content: type === 'start' ? '起点' : '终点',
+        direction: 'top',
+      };
+    }
+
+    if (markerStyle === 'badge') {
+      markerOptions.content = createBadgeMarkerContent(type);
+      markerOptions.offset = new AMap.Pixel(-17, -40);
+    }
+
+    const marker = new AMap.Marker(markerOptions);
     map.add(marker);
 
     if (type === 'start') startMarkerRef.current = marker;
     if (type === 'end') endMarkerRef.current = marker;
-  }, []);
+  }, [styleConfig.markerStyle]);
 
-  const renderRoute = useCallback((route: any) => {
-    const AMap = amapRef.current;
-    const map = mapRef.current;
-    if (!AMap || !map) return;
-
-    clearRouteOverlays();
-    const path = getRoutePath(route);
-    if (path.length < 2) return;
-
-    const glow = new AMap.Polyline({
-      path,
-      strokeColor: '#38bdf8',
-      strokeOpacity: 0.22,
-      strokeWeight: 18,
-      lineJoin: 'round',
-      lineCap: 'round',
-      zIndex: 58,
-    });
-
-    const outline = new AMap.Polyline({
-      path,
-      strokeColor: '#ffffff',
-      strokeOpacity: 0.96,
-      strokeWeight: 12,
-      lineJoin: 'round',
-      lineCap: 'round',
-      zIndex: 59,
-    });
-
-    const main = new AMap.Polyline({
-      path,
-      strokeColor: mode === 'walking' ? '#f97316' : mode === 'riding' ? '#10b981' : '#2563eb',
-      strokeOpacity: 0.98,
-      strokeWeight: 7,
-      lineJoin: 'round',
-      lineCap: 'round',
-      zIndex: 60,
-    });
-
-    routeOverlayRefs.current = [glow, outline, main];
-    map.add(routeOverlayRefs.current);
-
-    const overlays = [glow, outline, main, startMarkerRef.current, endMarkerRef.current].filter(Boolean);
-    map.setFitView(overlays, false, [96, window.innerWidth > 1024 ? 440 : 120, 120, 96], 17);
-  }, [clearRouteOverlays, mode]);
+  const repaintMarkers = useCallback((nextConfig = styleConfig) => {
+    clearSelectionMarkers();
+    if (startPoi) setMarker('start', startPoi, nextConfig.markerStyle);
+    if (endPoi) setMarker('end', endPoi, nextConfig.markerStyle);
+  }, [clearSelectionMarkers, endPoi, setMarker, startPoi, styleConfig]);
 
   const searchPoi = useCallback((keyword: string): Promise<PoiPoint> => {
     const placeSearch = placeSearchRef.current;
@@ -319,9 +290,7 @@ export default function AmapNavigationPage() {
         .slice(0, 8);
 
       setSuggestions(nextSuggestions);
-      if (nextSuggestions.length > 0) {
-        setMessage('请从下方候选地址中选择具体位置');
-      }
+      if (nextSuggestions.length > 0) setMessage('请从下方候选地址中选择具体位置');
     });
   }, []);
 
@@ -348,10 +317,10 @@ export default function AmapNavigationPage() {
           setEndSuggestions([]);
         }
 
+        plannerRef.current?.clear?.();
+        routePanelRef.current && (routePanelRef.current.innerHTML = '');
         setMarker(type, poi);
-        clearRouteOverlays();
         setRouteSummary(null);
-        setRouteSteps([]);
         mapRef.current?.setZoomAndCenter?.(15, poi.lnglat);
         setMessage(`已选择${type === 'start' ? '起点' : '终点'}：${getPoiLabel(poi)}`);
       } catch (error) {
@@ -359,7 +328,7 @@ export default function AmapNavigationPage() {
         setMessage(err.message || '地点确认失败，请重新选择');
       }
     },
-    [clearRouteOverlays, searchPoi, setMarker],
+    [searchPoi, setMarker],
   );
 
   const resolveRoutePoi = useCallback((type: 'start' | 'end', keyword: string, poi: PoiPoint | null): PoiPoint => {
@@ -374,12 +343,18 @@ export default function AmapNavigationPage() {
 
   const createPlanner = useCallback(() => {
     const AMap = amapRef.current;
-    if (!AMap) return null;
+    const map = mapRef.current;
+    const panel = routePanelRef.current;
+    if (!AMap || !map || !panel) return null;
 
     plannerRef.current?.clear?.();
-    plannerRef.current = createRoutePlanner(AMap, mode);
+    panel.innerHTML = '';
+    plannerRef.current = createRoutePlanner(AMap, mode, map, panel, {
+      city: defaultCity,
+      routeEffect: styleConfig.routeEffect,
+    });
     return plannerRef.current;
-  }, [mode]);
+  }, [defaultCity, mode, styleConfig.routeEffect]);
 
   const planRoute = useCallback(async () => {
     const AMap = amapRef.current;
@@ -397,10 +372,8 @@ export default function AmapNavigationPage() {
 
     try {
       setLoading(true);
-      setMessage('正在规划路线...');
+      setMessage(mode === 'transit' ? '正在规划公交路线...' : '正在规划路线...');
       setRouteSummary(null);
-      setRouteSteps([]);
-      clearRouteOverlays();
 
       const nextStartPoi = resolveRoutePoi('start', startKeyword, startPoi);
       const nextEndPoi = resolveRoutePoi('end', endKeyword, endPoi);
@@ -424,11 +397,9 @@ export default function AmapNavigationPage() {
             return;
           }
 
-          const route = result?.routes?.[0];
+          const route = getFirstRoute(result);
           setRouteSummary({ distance: route?.distance, time: route?.time });
-          setRouteSteps(getRouteSteps(route));
-          renderRoute(route);
-          setMessage('路线规划完成');
+          setMessage(mode === 'transit' ? '公交路线规划完成' : '路线规划完成');
           resolve();
         });
       });
@@ -441,17 +412,33 @@ export default function AmapNavigationPage() {
     } finally {
       setLoading(false);
     }
-  }, [clearRouteOverlays, createPlanner, endKeyword, endPoi, renderRoute, resolveRoutePoi, setMarker, startKeyword, startPoi]);
+  }, [createPlanner, endKeyword, endPoi, mode, resolveRoutePoi, setMarker, startKeyword, startPoi]);
 
   const resetRoute = useCallback(() => {
     plannerRef.current?.clear?.();
-    clearRouteOverlays();
+    routePanelRef.current && (routePanelRef.current.innerHTML = '');
     setRouteSummary(null);
-    setRouteSteps([]);
     setStartSuggestions([]);
     setEndSuggestions([]);
     setMessage(`已清除路线，当前默认城市：${defaultCity}`);
-  }, [clearRouteOverlays, defaultCity]);
+  }, [defaultCity]);
+
+  const openConfig = useCallback(() => {
+    setDraftConfig(styleConfig);
+    setConfigOpen(true);
+    setMobileOpen(true);
+  }, [styleConfig]);
+
+  const applyConfig = useCallback(() => {
+    setStyleConfig(draftConfig);
+    mapRef.current?.setMapStyle?.(draftConfig.mapStyle);
+    repaintMarkers(draftConfig);
+    plannerRef.current?.clear?.();
+    routePanelRef.current && (routePanelRef.current.innerHTML = '');
+    setRouteSummary(null);
+    setConfigOpen(false);
+    setMessage('样式配置已应用，请重新生成路线查看路线效果');
+  }, [draftConfig, repaintMarkers]);
 
   useEffect(() => {
     let destroyed = false;
@@ -470,13 +457,11 @@ export default function AmapNavigationPage() {
           center: cityCenter,
           viewMode: '2D',
           resizeEnable: true,
-          mapStyle: MODERN_MAP_STYLE,
-          showLabel: true,
-          features: ['bg', 'road', 'building', 'point'],
+          mapStyle: styleConfig.mapStyle,
         });
 
-        map.addControl(new AMap.Scale({ position: { left: '18px', bottom: '22px' } }));
-        map.addControl(new AMap.ToolBar({ position: { right: '18px', top: '18px' } }));
+        map.addControl(new AMap.Scale());
+        map.addControl(new AMap.ToolBar({ position: { right: '24px', top: '24px' } }));
 
         if (defaultCity !== '全国') {
           map.setCity?.(defaultCity, () => {
@@ -484,14 +469,8 @@ export default function AmapNavigationPage() {
           });
         }
 
-        placeSearchRef.current = new AMap.PlaceSearch({
-          city: defaultCity,
-          citylimit: false,
-        });
-        autoCompleteRef.current = new AMap.AutoComplete({
-          city: defaultCity,
-          citylimit: false,
-        });
+        placeSearchRef.current = new AMap.PlaceSearch({ city: defaultCity, citylimit: false });
+        autoCompleteRef.current = new AMap.AutoComplete({ city: defaultCity, citylimit: false });
 
         mapRef.current = map;
         setMessage(`地图加载完成，当前默认城市：${defaultCity}，请输入起点和终点`);
@@ -506,13 +485,13 @@ export default function AmapNavigationPage() {
     return () => {
       destroyed = true;
       plannerRef.current?.clear?.();
-      clearRouteOverlays();
+      clearSelectionMarkers();
       mapRef.current?.destroy?.();
       mapRef.current = null;
       autoCompleteRef.current = null;
       placeSearchRef.current = null;
     };
-  }, [clearRouteOverlays, defaultCity, resolveDefaultCityCenter]);
+  }, [clearSelectionMarkers, defaultCity, resolveDefaultCityCenter, styleConfig.mapStyle]);
 
   useEffect(() => {
     if (startPoi && startPoi.name !== startKeyword) setStartPoi(null);
@@ -565,110 +544,163 @@ export default function AmapNavigationPage() {
     );
   };
 
-  const panel = (
-    <div className="amap-route-card">
-      <div className="amap-route-card__header">
+  const renderConfigPanel = () => (
+    <div className="amap-route-config">
+      <div className="amap-route-config__header">
         <div>
-          <span className="amap-route-card__eyebrow">Smart Route</span>
-          <h2>路线导航</h2>
-          <p>{message}</p>
+          <h3>地图样式配置</h3>
+          <p>选择后点击确认，立即应用到底图、路线和起终点。</p>
         </div>
-        <button className="amap-route-card__close" type="button" onClick={() => setMobileOpen(false)} aria-label="关闭路线面板">
-          ×
-        </button>
+        <button type="button" onClick={() => setConfigOpen(false)}>×</button>
       </div>
 
-      <div className="amap-route-mode">
-        {MODE_OPTIONS.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            className={item.value === mode ? 'is-active' : ''}
-            onClick={() => {
-              setMode(item.value);
-              clearRouteOverlays();
-              setRouteSummary(null);
-              setRouteSteps([]);
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="amap-route-field">
-        <span>起点</span>
-        <input
-          value={startKeyword}
-          placeholder={startPlaceholder}
-          onChange={(event) => {
-            setStartKeyword(event.target.value);
-            setRouteSummary(null);
-            setRouteSteps([]);
-            clearRouteOverlays();
-          }}
-          onFocus={() => fetchSuggestions('start', startKeyword)}
-          onKeyDown={(event) => event.key === 'Enter' && planRoute()}
-        />
-        {renderSuggestions('start', startSuggestions)}
-      </div>
-
-      <div className="amap-route-field">
-        <span>终点</span>
-        <input
-          value={endKeyword}
-          placeholder={endPlaceholder}
-          onChange={(event) => {
-            setEndKeyword(event.target.value);
-            setRouteSummary(null);
-            setRouteSteps([]);
-            clearRouteOverlays();
-          }}
-          onFocus={() => fetchSuggestions('end', endKeyword)}
-          onKeyDown={(event) => event.key === 'Enter' && planRoute()}
-        />
-        {renderSuggestions('end', endSuggestions)}
-      </div>
-
-      <div className="amap-route-selected">
-        <div><span>起点</span>{getPoiLabel(startPoi) || '-'}</div>
-        <div><span>终点</span>{getPoiLabel(endPoi) || '-'}</div>
-      </div>
-
-      <div className="amap-route-actions">
-        <button type="button" onClick={planRoute} disabled={loading}>
-          {loading ? '规划中...' : '生成路线'}
-        </button>
-        <button type="button" className="amap-route-actions__secondary" onClick={resetRoute}>
-          清除
-        </button>
-      </div>
-
-      {routeSummary && (
-        <div className="amap-route-summary">
-          <div>
-            <strong>{formatDistance(routeSummary.distance)}</strong>
-            <span>预计距离</span>
-          </div>
-          <div>
-            <strong>{formatDuration(routeSummary.time)}</strong>
-            <span>预计用时</span>
-          </div>
-        </div>
-      )}
-
-      {routeSteps.length > 0 && (
-        <div className="amap-route-steps">
-          {routeSteps.map((step, index) => (
-            <div className="amap-route-step" key={`${step.instruction}-${index}`}>
-              <b>{index + 1}</b>
-              <div>
-                <strong>{step.instruction}</strong>
-                <span>{[step.road, Number.isFinite(step.distance) ? formatDistance(step.distance) : ''].filter(Boolean).join(' · ')}</span>
-              </div>
-            </div>
+      <section>
+        <h4>地图底图</h4>
+        <div className="amap-config-grid">
+          {MAP_STYLE_OPTIONS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={`amap-config-card ${draftConfig.mapStyle === item.value ? 'is-active' : ''}`}
+              onClick={() => setDraftConfig((prev) => ({ ...prev, mapStyle: item.value }))}
+            >
+              <i className={`amap-map-preview is-${item.preview}`} />
+              <strong>{item.label}</strong>
+              <span>{item.desc}</span>
+            </button>
           ))}
         </div>
+      </section>
+
+      <section>
+        <h4>路线效果</h4>
+        <div className="amap-config-list">
+          {ROUTE_EFFECT_OPTIONS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={draftConfig.routeEffect === item.value ? 'is-active' : ''}
+              onClick={() => setDraftConfig((prev) => ({ ...prev, routeEffect: item.value }))}
+            >
+              <strong>{item.label}</strong>
+              <span>{item.desc}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h4>起点终点</h4>
+        <div className="amap-config-list">
+          {MARKER_STYLE_OPTIONS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={draftConfig.markerStyle === item.value ? 'is-active' : ''}
+              onClick={() => setDraftConfig((prev) => ({ ...prev, markerStyle: item.value }))}
+            >
+              <strong>{item.label}</strong>
+              <span>{item.desc}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="amap-route-config__actions">
+        <button type="button" onClick={() => setDraftConfig(DEFAULT_STYLE_CONFIG)}>恢复默认</button>
+        <button type="button" onClick={applyConfig}>确认应用</button>
+      </div>
+    </div>
+  );
+
+  const panel = (
+    <div className="amap-route-card">
+      {configOpen ? renderConfigPanel() : (
+        <>
+          <div className="amap-route-card__header">
+            <div>
+              <h2>路线导航</h2>
+              <p>{message}</p>
+            </div>
+            <div className="amap-route-header-actions">
+              <button type="button" onClick={openConfig}>配置</button>
+              <button className="amap-route-card__close" type="button" onClick={() => setMobileOpen(false)} aria-label="关闭路线面板">×</button>
+            </div>
+          </div>
+
+          <div className="amap-route-mode">
+            {MODE_OPTIONS.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                className={item.value === mode ? 'is-active' : ''}
+                onClick={() => {
+                  setMode(item.value);
+                  plannerRef.current?.clear?.();
+                  routePanelRef.current && (routePanelRef.current.innerHTML = '');
+                  setRouteSummary(null);
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="amap-route-field">
+            <span>起点</span>
+            <input
+              value={startKeyword}
+              placeholder={startPlaceholder}
+              onChange={(event) => {
+                setStartKeyword(event.target.value);
+                setRouteSummary(null);
+              }}
+              onFocus={() => fetchSuggestions('start', startKeyword)}
+              onKeyDown={(event) => event.key === 'Enter' && planRoute()}
+            />
+            {renderSuggestions('start', startSuggestions)}
+          </div>
+
+          <div className="amap-route-field">
+            <span>终点</span>
+            <input
+              value={endKeyword}
+              placeholder={endPlaceholder}
+              onChange={(event) => {
+                setEndKeyword(event.target.value);
+                setRouteSummary(null);
+              }}
+              onFocus={() => fetchSuggestions('end', endKeyword)}
+              onKeyDown={(event) => event.key === 'Enter' && planRoute()}
+            />
+            {renderSuggestions('end', endSuggestions)}
+          </div>
+
+          <div className="amap-route-selected">
+            <div>起点：{getPoiLabel(startPoi) || '-'}</div>
+            <div>终点：{getPoiLabel(endPoi) || '-'}</div>
+          </div>
+
+          <div className="amap-route-actions">
+            <button type="button" onClick={planRoute} disabled={loading}>{loading ? '规划中...' : '开始规划'}</button>
+            <button type="button" className="amap-route-actions__secondary" onClick={resetRoute}>清除路线</button>
+          </div>
+
+          {routeSummary && (
+            <div className="amap-route-summary">
+              <div>
+                <strong>{formatDistance(routeSummary.distance)}</strong>
+                <span>预计距离</span>
+              </div>
+              <div>
+                <strong>{formatDuration(routeSummary.time)}</strong>
+                <span>预计用时</span>
+              </div>
+            </div>
+          )}
+
+          <div className="amap-route-detail" ref={routePanelRef} />
+        </>
       )}
     </div>
   );
@@ -676,11 +708,8 @@ export default function AmapNavigationPage() {
   return (
     <div className="amap-route-page">
       <div className="amap-route-map" ref={mapContainerRef} />
-      <div className="amap-route-vignette" />
       <div className={`amap-route-panel ${mobileOpen ? 'is-open' : ''}`}>{panel}</div>
-      <button className="amap-route-mobile-trigger" type="button" onClick={() => setMobileOpen(true)} aria-label="打开路线面板">
-        <span>路线</span>
-      </button>
+      <button className="amap-route-mobile-trigger" type="button" onClick={() => setMobileOpen(true)} aria-label="打开路线面板">路线</button>
       <div className={`amap-route-mobile-mask ${mobileOpen ? 'is-open' : ''}`} onClick={() => setMobileOpen(false)} />
     </div>
   );
