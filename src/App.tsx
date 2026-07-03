@@ -16,14 +16,14 @@ export default function App() {
     <div className="flex h-full min-h-0 overflow-hidden bg-slate-950 text-slate-950">
       <aside
         className={cn(
-          'hidden shrink-0 border-r border-white/10 bg-slate-950 p-4 text-white transition-[width,padding] duration-300 ease-in-out md:flex md:flex-col',
-          sidebarCollapsed ? 'w-[88px] px-3' : 'w-72',
+          'hidden shrink-0 border-r border-white/10 bg-slate-950 text-white transition-[width,padding] duration-300 ease-in-out md:flex md:flex-col',
+          sidebarCollapsed ? 'w-14 p-0' : 'w-72 p-4',
         )}
       >
         <div
           className={cn(
             'mb-6 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/20 transition-all duration-300 ease-in-out',
-            sidebarCollapsed && 'mb-3 max-h-0 border-transparent p-0 opacity-0',
+            sidebarCollapsed && 'mb-0 max-h-0 border-transparent p-0 opacity-0',
           )}
         >
           <div className="text-xs font-medium uppercase tracking-[0.28em] text-blue-200/70">Gaode Map</div>
@@ -31,7 +31,7 @@ export default function App() {
           <p className="mt-2 text-sm leading-6 text-slate-300">模块化管理导航、地点、收藏与偏好设置。</p>
         </div>
 
-        <nav className="space-y-2">
+        <nav className={cn('space-y-2 transition-all duration-300', sidebarCollapsed && 'space-y-0 pt-4')}>
           {APP_MODULES.map((item) => {
             const active = item.id === activeModuleId;
             const Icon = item.icon;
@@ -42,8 +42,8 @@ export default function App() {
                 variant="ghost"
                 title={sidebarCollapsed ? item.label : undefined}
                 className={cn(
-                  'h-auto w-full rounded-2xl text-left text-slate-400 transition-all duration-300 hover:bg-white/10 hover:text-white',
-                  sidebarCollapsed ? 'justify-center px-0 py-3' : 'justify-start gap-3 px-3 py-3',
+                  'h-auto w-full rounded-none text-left text-slate-400 transition-all duration-300 hover:bg-white/10 hover:text-white',
+                  sidebarCollapsed ? 'h-14 justify-center px-0 py-0' : 'justify-start gap-3 rounded-2xl px-3 py-3',
                   active && 'bg-transparent text-blue-400 hover:bg-white/10 hover:text-blue-300',
                 )}
                 onClick={() => setActiveModuleId(item.id)}
@@ -65,7 +65,7 @@ export default function App() {
           })}
         </nav>
 
-        <div className="mt-auto flex justify-center border-t border-white/10 pt-4">
+        <div className={cn('mt-auto flex justify-center border-t border-white/10 pt-4 transition-all duration-300', sidebarCollapsed && 'pt-3')}>
           <Button
             type="button"
             variant="ghost"
