@@ -48,13 +48,13 @@ export default function App() {
         </nav>
       </aside>
 
-      <main className="relative z-10 min-w-0 flex-1 overflow-hidden bg-slate-100">
+      <main className="relative min-w-0 flex-1 overflow-hidden bg-slate-100">
         <div className="absolute inset-x-0 top-0 bottom-[calc(74px+env(safe-area-inset-bottom))] min-h-0 overflow-hidden md:bottom-0">
           <ActiveModule />
         </div>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(15,23,42,0.14)] backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(15,23,42,0.14)] backdrop-blur md:hidden">
         <div className="grid grid-cols-5 gap-1">
           {APP_MODULES.map((item) => {
             const active = item.id === activeModuleId;
