@@ -1,6 +1,8 @@
 import AMapLoader from '@amap/amap-jsapi-loader';
 
-export type TravelMode = 'driving' | 'riding' | 'walking';
+export type TravelMode = 'driving' | 'riding' | 'walking' | 'transit';
+
+export type RouteEffect = 'default' | 'traffic' | 'simple';
 
 const AMAP_PLUGINS = [
   'AMap.Scale',
@@ -11,6 +13,7 @@ const AMAP_PLUGINS = [
   'AMap.Driving',
   'AMap.Riding',
   'AMap.Walking',
+  'AMap.Transfer',
 ];
 
 let amapPromise: Promise<any> | null = null;
@@ -46,25 +49,42 @@ export function loadAMap() {
   return amapPromise;
 }
 
-export function createRoutePlanner(AMap: any, mode: TravelMode) {
+export function createRoutePlanner(
+  AMap: any,
+  mode: TravelMode,
+  map: any,
+  panel: HTMLElement,
+  options: { city: string; routeEffect: RouteEffect },
+) {
+  const commonOptions = {
+    map,
+    panel,
+    hideMarkers: true,
+    autoFitView: true,
+  };
+
   if (mode === 'driving') {
     return new AMap.Driving({
+      ...commonOptions,
       policy: AMap.DrivingPolicy.LEAST_TIME,
-      hideMarkers: true,
-      autoFitView: false,
+      showTraffic: options.routeEffect === 'traffic',
+      isOutline: options.routeEffect !== 'simple',
+      outlineColor: '#ffffff',
     });
   }
 
   if (mode === 'riding') {
-    return new AMap.Riding({
-      hideMarkers: true,
-      autoFitView: false,
-    });
+    return new AMap.Riding(commonOptions);
   }
 
-  return new AMap.Walking({
-    hideMarkers: true,
-    autoFitView: false,
+  if (mode === 'walking') {
+    return new AMap.Walking(commonOptions);
+  }
+
+  return new AMap.Transfer({
+    ...commonOptions,
+    city: options.city === '全国' ? '' : options.city,
+    policy: AMap.TransferPolicy?.LEAST_TIME,
   });
 }
 
