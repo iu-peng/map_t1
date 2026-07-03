@@ -142,8 +142,43 @@
 }
 
 @media (min-width: 768px) {
+  .navigation-module .amap-route-panel {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    width: min(392px, 34vw) !important;
+    height: auto !important;
+    max-height: 100% !important;
+    transform: translateX(110%) !important;
+    transition: transform 0.25s ease;
+  }
+
+  .navigation-module .amap-route-panel.is-open {
+    transform: translateX(0) !important;
+  }
+
+  .navigation-module .amap-route-mobile-mask {
+    position: absolute !important;
+    inset: 0 !important;
+  }
+
   .navigation-module .amap-route-mobile-trigger {
-    display: none !important;
+    display: grid !important;
+  }
+
+  .navigation-module .amap-route-panel .amap-route-card {
+    height: 100%;
+    max-height: 100%;
+    padding: 18px !important;
+    border-radius: 0 !important;
+    overflow: auto;
+  }
+
+  .navigation-module .amap-route-panel .amap-route-card:has(.amap-route-config) {
+    padding: 0 !important;
+    overflow: hidden;
   }
 }
 
