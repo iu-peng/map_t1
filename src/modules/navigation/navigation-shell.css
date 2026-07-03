@@ -16,6 +16,14 @@
   pointer-events: none;
 }
 
+.navigation-module .amap-scalecontrol,
+.navigation-module .amap-scalecontrol .amap-scale-text,
+.navigation-module .amap-scalecontrol .amap-scale-line,
+.navigation-module .amap-scalecontrol div {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .navigation-module .amap-route-mobile-trigger {
   display: grid !important;
   place-items: center;
@@ -54,6 +62,33 @@
 .navigation-module .amap-route-panel .amap-route-card:has(.amap-route-config) {
   padding: 0 !important;
   overflow: hidden;
+}
+
+.navigation-module .amap-route-mode button,
+.navigation-module .amap-route-actions__secondary,
+.navigation-module .amap-route-config__actions button:first-child,
+.navigation-module .amap-route-header-actions button {
+  border: 1px solid #d6dee9 !important;
+  background: #e6ebf2 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.navigation-module .amap-route-mode button:hover,
+.navigation-module .amap-route-actions__secondary:hover,
+.navigation-module .amap-route-config__actions button:first-child:hover,
+.navigation-module .amap-route-header-actions button:hover {
+  background: #dbe3ee !important;
+  color: #1e293b !important;
+}
+
+.navigation-module .amap-route-mode button.is-active,
+.navigation-module .amap-route-actions button:first-child,
+.navigation-module .amap-route-config__actions button:last-child {
+  border-color: #1677ff !important;
+  background: #1677ff !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgba(22, 119, 255, 0.22);
 }
 
 .navigation-module .amap-route-config {
