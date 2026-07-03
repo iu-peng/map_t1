@@ -41,14 +41,14 @@ const MAP_STYLE_OPTIONS = [
   { label: '标准', desc: '信息完整，接近高德默认', value: 'amap://styles/normal', preview: 'normal' },
   { label: '清新', desc: '浅色、干净，适合 H5', value: 'amap://styles/fresh', preview: 'fresh' },
   { label: '灰白', desc: '商务低干扰风格', value: 'amap://styles/whitesmoke', preview: 'smoke' },
-  { label: '深色', desc: '夜间科技感', value: 'amap://styles/dark', preview: 'dark' },
+  { label: '夜晚', desc: '默认深色夜晚风格', value: 'amap://styles/dark', preview: 'dark' },
   { label: '马卡龙', desc: '柔和年轻化', value: 'amap://styles/macaron', preview: 'macaron' },
   { label: '蓝色', desc: '偏导航产品感', value: 'amap://styles/blue', preview: 'blue' },
 ];
 
 const ROUTE_EFFECT_OPTIONS: Array<{ label: string; desc: string; value: RouteEffect }> = [
-  { label: '默认路线', desc: '使用高德插件默认路线样式，最稳定', value: 'default' },
-  { label: '实时路况', desc: '驾车模式展示路况颜色，其他模式仍使用默认线', value: 'traffic' },
+  { label: '默认路线', desc: '使用矢量路线，缩放时跟随地图变化', value: 'default' },
+  { label: '实时路况', desc: '驾车模式预留路况配置，路线仍保持矢量跟随', value: 'traffic' },
   { label: '简洁路线', desc: '减少轮廓效果，路线更清爽', value: 'simple' },
 ];
 
@@ -59,7 +59,7 @@ const MARKER_STYLE_OPTIONS: Array<{ label: string; desc: string; value: MarkerSt
 ];
 
 const DEFAULT_STYLE_CONFIG: StyleConfig = {
-  mapStyle: 'amap://styles/normal',
+  mapStyle: 'amap://styles/dark',
   routeEffect: 'default',
   markerStyle: 'label',
 };
@@ -103,6 +103,10 @@ function toLngLat(location: any): [number, number] | undefined {
   return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : undefined;
 }
 
+function toAmapLngLat(AMap: any, lnglat: [number, number]) {
+  return new AMap.LngLat(lnglat[0], lnglat[1]);
+}
+
 function normalizeSuggestion(tip: any): AddressSuggestion | null {
   if (!tip?.name || tip.name === '请输入关键字') return null;
 
@@ -129,11 +133,33 @@ function getSuggestionText(item: AddressSuggestion) {
 }
 
 function createBadgeMarkerContent(type: 'start' | 'end') {
-  return `<div class="amap-route-badge-marker ${type === 'start' ? 'is-start' : 'is-end'}">${type === 'start' ? '起' : '终'}</div>`;
+  return `<div class="amap-route-badge-marker ${type === 'start' ? 'is-start' : 'is-end'}"><span>${type === 'start' ? '起' : '终'}</span></div>`;
 }
 
 function getFirstRoute(result: any) {
   return result?.routes?.[0] || result?.plans?.[0] || result?.route || null;
+}
+
+function getRouteSegments(route: any) {
+  const candidates = [route?.steps, route?.rides, route?.walks, route?.paths];
+  return candidates.find(Array.isArray) || [];
+}
+
+function getRoutePath(route: any): [number, number][] {
+  const directPath = Array.isArray(route?.path) ? route.path : [];
+  if (directPath.length > 0) return directPath.map(toLngLat).filter(Boolean) as [number, number][];
+
+  return getRouteSegments(route)
+    .flatMap((step: any) => (Array.isArray(step?.path) ? step.path : []))
+    .map(toLngLat)
+    .filter(Boolean) as [number, number][];
+}
+
+function getRouteColor(mode: TravelMode, routeEffect: RouteEffect) {
+  if (routeEffect === 'traffic' && mode === 'driving') return '#22c55e';
+  if (mode === 'walking') return '#f97316';
+  if (mode === 'riding') return '#10b981';
+  return '#3b82f6';
 }
 
 export default function AmapNavigationPage() {
@@ -146,6 +172,7 @@ export default function AmapNavigationPage() {
   const autoCompleteRef = useRef<any>(null);
   const startMarkerRef = useRef<any>(null);
   const endMarkerRef = useRef<any>(null);
+  const routeOverlayRefs = useRef<any[]>([]);
   const suggestionRequestRef = useRef({ start: 0, end: 0 });
 
   const [mode, setMode] = useState<TravelMode>('driving');
@@ -166,6 +193,14 @@ export default function AmapNavigationPage() {
   const defaultCity = useMemo(() => normalizeCity(import.meta.env.VITE_AMAP_DEFAULT_CITY), []);
   const startPlaceholder = defaultCity === '全国' ? '请输入起点，如 北京南站' : `请输入起点，如 ${defaultCity}站`;
   const endPlaceholder = defaultCity === '全国' ? '请输入终点，如 天安门' : `请输入终点，如 ${defaultCity}市政府`;
+
+  const clearRouteOverlays = useCallback(() => {
+    const map = mapRef.current;
+    if (map && routeOverlayRefs.current.length > 0) {
+      routeOverlayRefs.current.forEach((overlay) => map.remove(overlay));
+    }
+    routeOverlayRefs.current = [];
+  }, []);
 
   const clearSelectionMarkers = useCallback(() => {
     const map = mapRef.current;
@@ -230,6 +265,49 @@ export default function AmapNavigationPage() {
     if (startPoi) setMarker('start', startPoi, nextConfig.markerStyle);
     if (endPoi) setMarker('end', endPoi, nextConfig.markerStyle);
   }, [clearSelectionMarkers, endPoi, setMarker, startPoi, styleConfig]);
+
+  const renderVectorRoute = useCallback((route: any, start: PoiPoint, end: PoiPoint) => {
+    const AMap = amapRef.current;
+    const map = mapRef.current;
+    if (!AMap || !map) return false;
+
+    clearRouteOverlays();
+    const path = getRoutePath(route);
+    if (path.length < 2) return false;
+
+    const overlays: any[] = [];
+
+    if (styleConfig.routeEffect !== 'simple') {
+      overlays.push(new AMap.Polyline({
+        path,
+        strokeColor: '#ffffff',
+        strokeOpacity: styleConfig.mapStyle.includes('dark') ? 0.35 : 0.92,
+        strokeWeight: 11,
+        lineJoin: 'round',
+        lineCap: 'round',
+        zIndex: 58,
+      }));
+    }
+
+    overlays.push(new AMap.Polyline({
+      path,
+      strokeColor: getRouteColor(mode, styleConfig.routeEffect),
+      strokeOpacity: 0.96,
+      strokeWeight: styleConfig.routeEffect === 'simple' ? 6 : 7,
+      lineJoin: 'round',
+      lineCap: 'round',
+      zIndex: 59,
+    }));
+
+    routeOverlayRefs.current = overlays;
+    map.add(overlays);
+
+    const fitOverlays = [...overlays, startMarkerRef.current, endMarkerRef.current].filter(Boolean);
+    map.setFitView(fitOverlays, false, [90, window.innerWidth > 1024 ? 430 : 96, 130, 90], 17);
+    setMarker('start', start);
+    setMarker('end', end);
+    return true;
+  }, [clearRouteOverlays, mode, setMarker, styleConfig.mapStyle, styleConfig.routeEffect]);
 
   const searchPoi = useCallback((keyword: string): Promise<PoiPoint> => {
     const placeSearch = placeSearchRef.current;
@@ -319,6 +397,7 @@ export default function AmapNavigationPage() {
 
         plannerRef.current?.clear?.();
         routePanelRef.current && (routePanelRef.current.innerHTML = '');
+        clearRouteOverlays();
         setMarker(type, poi);
         setRouteSummary(null);
         mapRef.current?.setZoomAndCenter?.(15, poi.lnglat);
@@ -328,7 +407,7 @@ export default function AmapNavigationPage() {
         setMessage(err.message || '地点确认失败，请重新选择');
       }
     },
-    [searchPoi, setMarker],
+    [clearRouteOverlays, searchPoi, setMarker],
   );
 
   const resolveRoutePoi = useCallback((type: 'start' | 'end', keyword: string, poi: PoiPoint | null): PoiPoint => {
@@ -374,6 +453,7 @@ export default function AmapNavigationPage() {
       setLoading(true);
       setMessage(mode === 'transit' ? '正在规划公交路线...' : '正在规划路线...');
       setRouteSummary(null);
+      clearRouteOverlays();
 
       const nextStartPoi = resolveRoutePoi('start', startKeyword, startPoi);
       const nextEndPoi = resolveRoutePoi('end', endKeyword, endPoi);
@@ -391,17 +471,30 @@ export default function AmapNavigationPage() {
       if (!planner) throw new Error('路线规划服务初始化失败');
 
       await new Promise<void>((resolve, reject) => {
-        planner.search(nextStartPoi.lnglat, nextEndPoi.lnglat, (status: string, result: any) => {
-          if (status !== 'complete') {
-            reject(new Error(result?.info || '路线规划失败'));
-            return;
-          }
+        planner.search(
+          toAmapLngLat(AMap, nextStartPoi.lnglat),
+          toAmapLngLat(AMap, nextEndPoi.lnglat),
+          (status: string, result: any) => {
+            if (status !== 'complete') {
+              reject(new Error(result?.info || '路线规划失败'));
+              return;
+            }
 
-          const route = getFirstRoute(result);
-          setRouteSummary({ distance: route?.distance, time: route?.time });
-          setMessage(mode === 'transit' ? '公交路线规划完成' : '路线规划完成');
-          resolve();
-        });
+            const route = getFirstRoute(result);
+            setRouteSummary({ distance: route?.distance, time: route?.time });
+
+            if (mode !== 'transit') {
+              const rendered = renderVectorRoute(route, nextStartPoi, nextEndPoi);
+              if (!rendered) {
+                reject(new Error('路线已返回，但未解析到可绘制路径'));
+                return;
+              }
+            }
+
+            setMessage(mode === 'transit' ? '公交路线规划完成' : '路线规划完成');
+            resolve();
+          },
+        );
       });
 
       setMobileOpen(false);
@@ -412,16 +505,17 @@ export default function AmapNavigationPage() {
     } finally {
       setLoading(false);
     }
-  }, [createPlanner, endKeyword, endPoi, mode, resolveRoutePoi, setMarker, startKeyword, startPoi]);
+  }, [clearRouteOverlays, createPlanner, endKeyword, endPoi, mode, renderVectorRoute, resolveRoutePoi, setMarker, startKeyword, startPoi]);
 
   const resetRoute = useCallback(() => {
     plannerRef.current?.clear?.();
     routePanelRef.current && (routePanelRef.current.innerHTML = '');
+    clearRouteOverlays();
     setRouteSummary(null);
     setStartSuggestions([]);
     setEndSuggestions([]);
     setMessage(`已清除路线，当前默认城市：${defaultCity}`);
-  }, [defaultCity]);
+  }, [clearRouteOverlays, defaultCity]);
 
   const openConfig = useCallback(() => {
     setDraftConfig(styleConfig);
@@ -435,10 +529,11 @@ export default function AmapNavigationPage() {
     repaintMarkers(draftConfig);
     plannerRef.current?.clear?.();
     routePanelRef.current && (routePanelRef.current.innerHTML = '');
+    clearRouteOverlays();
     setRouteSummary(null);
     setConfigOpen(false);
     setMessage('样式配置已应用，请重新生成路线查看路线效果');
-  }, [draftConfig, repaintMarkers]);
+  }, [clearRouteOverlays, draftConfig, repaintMarkers]);
 
   useEffect(() => {
     let destroyed = false;
@@ -457,7 +552,11 @@ export default function AmapNavigationPage() {
           center: cityCenter,
           viewMode: '2D',
           resizeEnable: true,
-          mapStyle: styleConfig.mapStyle,
+          mapStyle: DEFAULT_STYLE_CONFIG.mapStyle,
+          zoomEnable: true,
+          touchZoom: true,
+          dragEnable: true,
+          doubleClickZoom: true,
         });
 
         map.addControl(new AMap.Scale());
@@ -485,13 +584,14 @@ export default function AmapNavigationPage() {
     return () => {
       destroyed = true;
       plannerRef.current?.clear?.();
+      clearRouteOverlays();
       clearSelectionMarkers();
       mapRef.current?.destroy?.();
       mapRef.current = null;
       autoCompleteRef.current = null;
       placeSearchRef.current = null;
     };
-  }, [clearSelectionMarkers, defaultCity, resolveDefaultCityCenter, styleConfig.mapStyle]);
+  }, [clearRouteOverlays, clearSelectionMarkers, defaultCity, resolveDefaultCityCenter]);
 
   useEffect(() => {
     if (startPoi && startPoi.name !== startKeyword) setStartPoi(null);
@@ -638,6 +738,7 @@ export default function AmapNavigationPage() {
                   setMode(item.value);
                   plannerRef.current?.clear?.();
                   routePanelRef.current && (routePanelRef.current.innerHTML = '');
+                  clearRouteOverlays();
                   setRouteSummary(null);
                 }}
               >
