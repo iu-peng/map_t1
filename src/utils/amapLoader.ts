@@ -16,7 +16,32 @@ const AMAP_PLUGINS = [
   'AMap.Transfer',
 ];
 
+const DEFAULT_ZOOMS: [number, number] = [3.6, 20];
+
 let amapPromise: Promise<any> | null = null;
+
+function patchAMapMap(AMap: any) {
+  if (!AMap?.Map || AMap.__gaodeMapPatched) return AMap;
+
+  const OriginalMap = AMap.Map;
+
+  function PatchedMap(this: unknown, container: HTMLElement | string, options: Record<string, unknown> = {}) {
+    const nextOptions = {
+      ...options,
+      zooms: options.zooms || DEFAULT_ZOOMS,
+    };
+    const map = new OriginalMap(container, nextOptions);
+    (window as any).__gaodeMapLastMap = map;
+    return map;
+  }
+
+  PatchedMap.prototype = OriginalMap.prototype;
+  Object.assign(PatchedMap, OriginalMap);
+  AMap.Map = PatchedMap;
+  AMap.__gaodeMapPatched = true;
+
+  return AMap;
+}
 
 export function loadAMap() {
   if (typeof window === 'undefined') {
@@ -44,7 +69,7 @@ export function loadAMap() {
     key,
     version: '2.0',
     plugins: AMAP_PLUGINS,
-  });
+  }).then(patchAMapMap);
 
   return amapPromise;
 }
