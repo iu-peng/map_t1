@@ -41,8 +41,8 @@ const MAP_STYLE_OPTIONS = [
   { label: '标准', desc: '信息完整，接近高德默认', value: 'amap://styles/normal', preview: 'normal' },
   { label: '清新', desc: '浅色、干净，适合 H5', value: 'amap://styles/fresh', preview: 'fresh' },
   { label: '灰白', desc: '商务低干扰风格', value: 'amap://styles/whitesmoke', preview: 'smoke' },
-  { label: '夜晚', desc: '默认深色夜晚风格', value: 'amap://styles/dark', preview: 'dark' },
-  { label: '马卡龙', desc: '柔和年轻化', value: 'amap://styles/macaron', preview: 'macaron' },
+  { label: '深蓝', desc: '暗色但不纯黑，默认使用', value: 'amap://styles/darkblue', preview: 'darkblue' },
+  { label: '夜晚', desc: '更深的夜间风格', value: 'amap://styles/dark', preview: 'dark' },
   { label: '蓝色', desc: '偏导航产品感', value: 'amap://styles/blue', preview: 'blue' },
 ];
 
@@ -59,12 +59,14 @@ const MARKER_STYLE_OPTIONS: Array<{ label: string; desc: string; value: MarkerSt
 ];
 
 const DEFAULT_STYLE_CONFIG: StyleConfig = {
-  mapStyle: 'amap://styles/dark',
+  mapStyle: 'amap://styles/darkblue',
   routeEffect: 'default',
   markerStyle: 'label',
 };
 
 const FALLBACK_CENTER: [number, number] = [116.397428, 39.90923];
+const DEFAULT_COUNTRY_ZOOM = 5.5;
+const DEFAULT_CITY_ZOOM = 13;
 
 function normalizeCity(value?: string) {
   return value?.trim() || '全国';
@@ -160,6 +162,10 @@ function getRouteColor(mode: TravelMode, routeEffect: RouteEffect) {
   if (mode === 'walking') return '#f97316';
   if (mode === 'riding') return '#10b981';
   return '#3b82f6';
+}
+
+function isDarkStyle(mapStyle: string) {
+  return mapStyle.includes('dark') || mapStyle.includes('blue');
 }
 
 export default function AmapNavigationPage() {
@@ -281,7 +287,7 @@ export default function AmapNavigationPage() {
       overlays.push(new AMap.Polyline({
         path,
         strokeColor: '#ffffff',
-        strokeOpacity: styleConfig.mapStyle.includes('dark') ? 0.35 : 0.92,
+        strokeOpacity: isDarkStyle(styleConfig.mapStyle) ? 0.44 : 0.92,
         strokeWeight: 11,
         lineJoin: 'round',
         lineCap: 'round',
@@ -548,7 +554,7 @@ export default function AmapNavigationPage() {
 
         amapRef.current = AMap;
         const map = new AMap.Map(mapContainerRef.current, {
-          zoom: defaultCity === '全国' ? 5 : 12,
+          zoom: defaultCity === '全国' ? DEFAULT_COUNTRY_ZOOM : DEFAULT_CITY_ZOOM,
           center: cityCenter,
           viewMode: '2D',
           resizeEnable: true,
@@ -564,7 +570,7 @@ export default function AmapNavigationPage() {
 
         if (defaultCity !== '全国') {
           map.setCity?.(defaultCity, () => {
-            if (!destroyed) map.setZoom?.(12);
+            if (!destroyed) map.setZoom?.(DEFAULT_CITY_ZOOM);
           });
         }
 
