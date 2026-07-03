@@ -17,15 +17,8 @@ export default function App() {
       <aside
         className={cn(
           'hidden shrink-0 border-r border-white/10 bg-slate-950 text-white transition-[width,padding] duration-300 ease-in-out md:flex md:flex-col',
-          sidebarCollapsed ? 'w-14 cursor-e-resize p-0' : 'w-72 p-4',
+          sidebarCollapsed ? 'w-14 p-0' : 'w-72 p-4',
         )}
-        title={sidebarCollapsed ? '点击展开侧边栏' : undefined}
-        onClickCapture={(event) => {
-          if (!sidebarCollapsed) return;
-          event.preventDefault();
-          event.stopPropagation();
-          setSidebarCollapsed(false);
-        }}
       >
         <div
           className={cn(
@@ -47,10 +40,10 @@ export default function App() {
                 key={item.id}
                 type="button"
                 variant="ghost"
-                title={sidebarCollapsed ? item.label : undefined}
+                title={item.label}
                 className={cn(
                   'group h-auto w-full rounded-none text-left text-slate-400 transition-all duration-300 hover:bg-transparent hover:text-slate-300',
-                  sidebarCollapsed ? 'h-14 cursor-e-resize justify-center px-0 py-0' : 'justify-start gap-3 rounded-2xl px-3 py-3',
+                  sidebarCollapsed ? 'h-14 cursor-pointer justify-center px-0 py-0' : 'justify-start gap-3 rounded-2xl px-3 py-3',
                   active && 'bg-transparent text-blue-400 hover:bg-transparent hover:text-blue-300',
                 )}
                 onClick={() => setActiveModuleId(item.id)}
@@ -77,7 +70,15 @@ export default function App() {
           })}
         </nav>
 
-        {!sidebarCollapsed && (
+        {sidebarCollapsed ? (
+          <button
+            type="button"
+            className="mt-auto h-full min-h-16 w-full cursor-e-resize border-0 bg-transparent p-0"
+            onClick={() => setSidebarCollapsed(false)}
+            aria-label="展开侧边栏"
+            title="点击展开侧边栏"
+          />
+        ) : (
           <div className="mt-auto flex justify-center border-t border-white/10 pt-4 transition-all duration-300">
             <Button
               type="button"
