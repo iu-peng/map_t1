@@ -5,6 +5,9 @@
   height: 100dvh;
   overflow: hidden;
   background: #f5f7fb;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .amap-route-map {
@@ -31,6 +34,9 @@
   box-shadow: 0 16px 44px rgba(15, 23, 42, 0.18);
   backdrop-filter: blur(10px);
   box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .amap-route-card__header {
@@ -58,6 +64,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .amap-route-header-actions button {
@@ -127,7 +134,10 @@
   border-radius: 10px;
   outline: none;
   box-sizing: border-box;
-  font-size: 14px;
+  font-size: 16px;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .amap-route-field input:focus {
@@ -143,6 +153,8 @@
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .amap-route-suggestion {
@@ -248,6 +260,8 @@
   min-height: 0;
   margin-top: 14px;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .amap-route-detail:empty {
@@ -260,6 +274,8 @@
   gap: 16px;
   max-height: inherit;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .amap-route-config__header {
@@ -294,6 +310,7 @@
   background: #f2f4f7;
   color: #667085;
   font-size: 22px;
+  flex-shrink: 0;
 }
 
 .amap-route-config section {
@@ -437,10 +454,6 @@
   transform: rotate(-45deg);
 }
 
-.amap-route-badge-marker::first-letter {
-  transform: rotate(45deg);
-}
-
 .amap-route-badge-marker.is-start {
   background: #12b76a;
 }
@@ -466,6 +479,7 @@
     max-height: 100dvh;
     transform: translateX(110%);
     transition: transform 0.25s ease;
+    touch-action: pan-y;
   }
 
   .amap-route-panel.is-open {
@@ -476,9 +490,148 @@
     height: 100%;
     max-height: 100vh;
     max-height: 100dvh;
-    padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+    padding: 14px 14px calc(18px + env(safe-area-inset-bottom));
     border-radius: 18px 0 0 18px;
     overflow: auto;
+  }
+
+  .amap-route-card__header,
+  .amap-route-config__header {
+    position: sticky;
+    top: -14px;
+    z-index: 5;
+    margin: -14px -14px 0;
+    padding: 14px 14px 10px;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(10px);
+  }
+
+  .amap-route-card h2,
+  .amap-route-config__header h3 {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .amap-route-card p,
+  .amap-route-config__header p {
+    font-size: 12px;
+    line-height: 17px;
+    margin-top: 2px;
+  }
+
+  .amap-route-mode {
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .amap-route-mode button {
+    height: 36px;
+    font-size: 13px;
+    border-radius: 9px;
+  }
+
+  .amap-route-field {
+    margin-top: 10px;
+  }
+
+  .amap-route-field span {
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+
+  .amap-route-field input {
+    height: 40px;
+    font-size: 16px;
+    border-radius: 9px;
+  }
+
+  .amap-route-suggestions {
+    max-height: 128px;
+  }
+
+  .amap-route-suggestion {
+    padding: 8px 10px;
+  }
+
+  .amap-route-suggestion strong {
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .amap-route-suggestion span {
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .amap-route-selected {
+    margin-top: 10px;
+    padding: 8px 10px;
+  }
+
+  .amap-route-actions {
+    margin-top: 10px;
+  }
+
+  .amap-route-actions button {
+    height: 38px;
+  }
+
+  .amap-route-summary {
+    margin-top: 10px;
+  }
+
+  .amap-route-detail {
+    margin-top: 10px;
+    max-height: 42vh;
+  }
+
+  .amap-route-config {
+    gap: 12px;
+    padding-bottom: 104px;
+  }
+
+  .amap-route-config section {
+    gap: 8px;
+  }
+
+  .amap-config-grid,
+  .amap-config-list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 3px 3px 8px;
+    margin: 0 -3px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .amap-config-card,
+  .amap-config-list button {
+    flex: 0 0 148px;
+    min-width: 148px;
+    scroll-snap-align: start;
+  }
+
+  .amap-config-list button {
+    min-height: 78px;
+  }
+
+  .amap-map-preview {
+    height: 48px;
+  }
+
+  .amap-route-config__actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    padding: 10px 0 calc(88px + env(safe-area-inset-bottom));
+    margin-bottom: calc(-88px - env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.98) 24%);
+  }
+
+  .amap-route-config__actions button {
+    height: 40px;
   }
 
   .amap-route-mobile-trigger {
@@ -516,10 +669,6 @@
   .amap-route-card__close {
     display: block;
   }
-
-  .amap-route-suggestions {
-    max-height: 180px;
-  }
 }
 
 @media (max-width: 520px) {
@@ -527,16 +676,17 @@
     width: 94vw;
   }
 
-  .amap-route-card {
-    padding: 16px;
+  .amap-route-actions {
+    grid-template-columns: 1fr 86px;
   }
 
-  .amap-route-actions,
   .amap-route-config__actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: 96px 1fr;
   }
 
-  .amap-config-grid {
-    grid-template-columns: 1fr;
+  .amap-config-card,
+  .amap-config-list button {
+    flex-basis: 142px;
+    min-width: 142px;
   }
 }
