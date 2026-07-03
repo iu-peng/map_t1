@@ -22,6 +22,12 @@ type RouteSummary = {
   time?: number;
 };
 
+type RouteStep = {
+  instruction: string;
+  road?: string;
+  distance?: number;
+};
+
 const MODE_OPTIONS: Array<{ label: string; value: TravelMode }> = [
   { label: '驾车', value: 'driving' },
   { label: '骑行', value: 'riding' },
@@ -29,27 +35,10 @@ const MODE_OPTIONS: Array<{ label: string; value: TravelMode }> = [
 ];
 
 const FALLBACK_CENTER: [number, number] = [116.397428, 39.90923];
-
-const CITY_CENTER_MAP: Record<string, [number, number]> = {
-  太原: [112.549248, 37.857014],
-  太原市: [112.549248, 37.857014],
-  北京: [116.397428, 39.90923],
-  北京市: [116.397428, 39.90923],
-  上海: [121.473667, 31.230525],
-  上海市: [121.473667, 31.230525],
-  广州: [113.264385, 23.129112],
-  广州市: [113.264385, 23.129112],
-  深圳: [114.057868, 22.543099],
-  深圳市: [114.057868, 22.543099],
-};
+const MODERN_MAP_STYLE = 'amap://styles/fresh';
 
 function normalizeCity(value?: string) {
   return value?.trim() || '全国';
-}
-
-function getCityCenter(city: string): [number, number] {
-  if (!city || city === '全国') return FALLBACK_CENTER;
-  return CITY_CENTER_MAP[city] || FALLBACK_CENTER;
 }
 
 function parseLngLat(value: string): [number, number] | null {
@@ -65,6 +54,10 @@ function parseLngLat(value: string): [number, number] | null {
 function normalizeAddress(value: unknown) {
   if (Array.isArray(value)) return value.join('');
   return typeof value === 'string' ? value : '';
+}
+
+function stripHtml(value: unknown) {
+  return normalizeAddress(value).replace(/<[^>]+>/g, '').trim();
 }
 
 function toLngLat(location: any): [number, number] | undefined {
@@ -110,9 +103,44 @@ function getSuggestionText(item: AddressSuggestion) {
   return [item.district, item.address].filter(Boolean).join(' · ') || '点击选择此地点';
 }
 
+function getRouteSegments(route: any) {
+  const candidates = [route?.steps, route?.rides, route?.walks, route?.paths];
+  return candidates.find(Array.isArray) || [];
+}
+
+function getRoutePath(route: any): [number, number][] {
+  const directPath = Array.isArray(route?.path) ? route.path : [];
+  if (directPath.length > 0) return directPath.map(toLngLat).filter(Boolean) as [number, number][];
+
+  return getRouteSegments(route)
+    .flatMap((step: any) => (Array.isArray(step?.path) ? step.path : []))
+    .map(toLngLat)
+    .filter(Boolean) as [number, number][];
+}
+
+function getRouteSteps(route: any): RouteStep[] {
+  return getRouteSegments(route)
+    .map((step: any) => ({
+      instruction: stripHtml(step?.instruction || step?.action || step?.road || '继续前行'),
+      road: stripHtml(step?.road),
+      distance: Number(step?.distance),
+    }))
+    .filter((step: RouteStep) => step.instruction)
+    .slice(0, 12);
+}
+
+function createMarkerContent(type: 'start' | 'end') {
+  const isStart = type === 'start';
+  return `
+    <div class="amap-custom-marker ${isStart ? 'is-start' : 'is-end'}">
+      <span class="amap-custom-marker__pin">${isStart ? '起' : '终'}</span>
+      <span class="amap-custom-marker__pulse"></span>
+    </div>
+  `;
+}
+
 export default function AmapNavigationPage() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const routePanelRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const amapRef = useRef<any>(null);
   const plannerRef = useRef<any>(null);
@@ -120,6 +148,7 @@ export default function AmapNavigationPage() {
   const autoCompleteRef = useRef<any>(null);
   const startMarkerRef = useRef<any>(null);
   const endMarkerRef = useRef<any>(null);
+  const routeOverlayRefs = useRef<any[]>([]);
   const suggestionRequestRef = useRef({ start: 0, end: 0 });
 
   const [mode, setMode] = useState<TravelMode>('driving');
@@ -132,11 +161,36 @@ export default function AmapNavigationPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('请输入起点和终点后开始路线规划');
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
+  const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const defaultCity = useMemo(() => normalizeCity(import.meta.env.VITE_AMAP_DEFAULT_CITY), []);
   const startPlaceholder = defaultCity === '全国' ? '请输入起点，如 北京南站' : `请输入起点，如 ${defaultCity}站`;
   const endPlaceholder = defaultCity === '全国' ? '请输入终点，如 天安门' : `请输入终点，如 ${defaultCity}市政府`;
+
+  const clearRouteOverlays = useCallback(() => {
+    const map = mapRef.current;
+    if (map && routeOverlayRefs.current.length > 0) {
+      routeOverlayRefs.current.forEach((overlay) => map.remove(overlay));
+    }
+    routeOverlayRefs.current = [];
+  }, []);
+
+  const resolveDefaultCityCenter = useCallback((AMap: any, city: string): Promise<[number, number]> => {
+    if (!city || city === '全国') return Promise.resolve(FALLBACK_CENTER);
+
+    return new Promise((resolve) => {
+      try {
+        const geocoder = new AMap.Geocoder({ city });
+        geocoder.getLocation(city, (status: string, result: any) => {
+          const center = toLngLat(result?.geocodes?.[0]?.location);
+          resolve(status === 'complete' && center ? center : FALLBACK_CENTER);
+        });
+      } catch {
+        resolve(FALLBACK_CENTER);
+      }
+    });
+  }, []);
 
   const setMarker = useCallback((type: 'start' | 'end', poi: PoiPoint) => {
     const AMap = amapRef.current;
@@ -149,18 +203,62 @@ export default function AmapNavigationPage() {
     const marker = new AMap.Marker({
       position: poi.lnglat,
       title: poi.name,
-      label: {
-        content: type === 'start' ? '起点' : '终点',
-        direction: 'top',
-      },
+      content: createMarkerContent(type),
+      offset: new AMap.Pixel(-18, -48),
+      zIndex: type === 'start' ? 120 : 121,
     });
 
     map.add(marker);
-    map.setFitView([marker]);
 
     if (type === 'start') startMarkerRef.current = marker;
     if (type === 'end') endMarkerRef.current = marker;
   }, []);
+
+  const renderRoute = useCallback((route: any) => {
+    const AMap = amapRef.current;
+    const map = mapRef.current;
+    if (!AMap || !map) return;
+
+    clearRouteOverlays();
+    const path = getRoutePath(route);
+    if (path.length < 2) return;
+
+    const glow = new AMap.Polyline({
+      path,
+      strokeColor: '#38bdf8',
+      strokeOpacity: 0.22,
+      strokeWeight: 18,
+      lineJoin: 'round',
+      lineCap: 'round',
+      zIndex: 58,
+    });
+
+    const outline = new AMap.Polyline({
+      path,
+      strokeColor: '#ffffff',
+      strokeOpacity: 0.96,
+      strokeWeight: 12,
+      lineJoin: 'round',
+      lineCap: 'round',
+      zIndex: 59,
+    });
+
+    const main = new AMap.Polyline({
+      path,
+      strokeColor: mode === 'walking' ? '#f97316' : mode === 'riding' ? '#10b981' : '#2563eb',
+      strokeOpacity: 0.98,
+      strokeWeight: 7,
+      lineJoin: 'round',
+      lineCap: 'round',
+      zIndex: 60,
+    });
+
+    routeOverlayRefs.current = [glow, outline, main];
+    map.add(routeOverlayRefs.current);
+
+    const overlays = [glow, outline, main, startMarkerRef.current, endMarkerRef.current].filter(Boolean);
+    map.setFitView(overlays, false, [96, window.innerWidth > 1024 ? 440 : 120, 120, 96], 17);
+  }, [clearRouteOverlays, mode]);
 
   const searchPoi = useCallback((keyword: string): Promise<PoiPoint> => {
     const placeSearch = placeSearchRef.current;
@@ -251,7 +349,9 @@ export default function AmapNavigationPage() {
         }
 
         setMarker(type, poi);
+        clearRouteOverlays();
         setRouteSummary(null);
+        setRouteSteps([]);
         mapRef.current?.setZoomAndCenter?.(15, poi.lnglat);
         setMessage(`已选择${type === 'start' ? '起点' : '终点'}：${getPoiLabel(poi)}`);
       } catch (error) {
@@ -259,7 +359,7 @@ export default function AmapNavigationPage() {
         setMessage(err.message || '地点确认失败，请重新选择');
       }
     },
-    [searchPoi, setMarker],
+    [clearRouteOverlays, searchPoi, setMarker],
   );
 
   const resolveRoutePoi = useCallback((type: 'start' | 'end', keyword: string, poi: PoiPoint | null): PoiPoint => {
@@ -274,13 +374,10 @@ export default function AmapNavigationPage() {
 
   const createPlanner = useCallback(() => {
     const AMap = amapRef.current;
-    const map = mapRef.current;
-    const panel = routePanelRef.current;
-    if (!AMap || !map || !panel) return null;
+    if (!AMap) return null;
 
     plannerRef.current?.clear?.();
-    panel.innerHTML = '';
-    plannerRef.current = createRoutePlanner(AMap, mode, map, panel);
+    plannerRef.current = createRoutePlanner(AMap, mode);
     return plannerRef.current;
   }, [mode]);
 
@@ -302,6 +399,8 @@ export default function AmapNavigationPage() {
       setLoading(true);
       setMessage('正在规划路线...');
       setRouteSummary(null);
+      setRouteSteps([]);
+      clearRouteOverlays();
 
       const nextStartPoi = resolveRoutePoi('start', startKeyword, startPoi);
       const nextEndPoi = resolveRoutePoi('end', endKeyword, endPoi);
@@ -327,6 +426,8 @@ export default function AmapNavigationPage() {
 
           const route = result?.routes?.[0];
           setRouteSummary({ distance: route?.distance, time: route?.time });
+          setRouteSteps(getRouteSteps(route));
+          renderRoute(route);
           setMessage('路线规划完成');
           resolve();
         });
@@ -340,16 +441,17 @@ export default function AmapNavigationPage() {
     } finally {
       setLoading(false);
     }
-  }, [createPlanner, endKeyword, endPoi, resolveRoutePoi, setMarker, startKeyword, startPoi]);
+  }, [clearRouteOverlays, createPlanner, endKeyword, endPoi, renderRoute, resolveRoutePoi, setMarker, startKeyword, startPoi]);
 
   const resetRoute = useCallback(() => {
     plannerRef.current?.clear?.();
-    routePanelRef.current && (routePanelRef.current.innerHTML = '');
+    clearRouteOverlays();
     setRouteSummary(null);
+    setRouteSteps([]);
     setStartSuggestions([]);
     setEndSuggestions([]);
     setMessage(`已清除路线，当前默认城市：${defaultCity}`);
-  }, [defaultCity]);
+  }, [clearRouteOverlays, defaultCity]);
 
   useEffect(() => {
     let destroyed = false;
@@ -359,16 +461,22 @@ export default function AmapNavigationPage() {
         const AMap = await loadAMap();
         if (destroyed || !mapContainerRef.current) return;
 
+        const cityCenter = await resolveDefaultCityCenter(AMap, defaultCity);
+        if (destroyed || !mapContainerRef.current) return;
+
         amapRef.current = AMap;
         const map = new AMap.Map(mapContainerRef.current, {
           zoom: defaultCity === '全国' ? 5 : 12,
-          center: getCityCenter(defaultCity),
+          center: cityCenter,
           viewMode: '2D',
           resizeEnable: true,
+          mapStyle: MODERN_MAP_STYLE,
+          showLabel: true,
+          features: ['bg', 'road', 'building', 'point'],
         });
 
-        map.addControl(new AMap.Scale());
-        map.addControl(new AMap.ToolBar({ position: { right: '24px', top: '24px' } }));
+        map.addControl(new AMap.Scale({ position: { left: '18px', bottom: '22px' } }));
+        map.addControl(new AMap.ToolBar({ position: { right: '18px', top: '18px' } }));
 
         if (defaultCity !== '全国') {
           map.setCity?.(defaultCity, () => {
@@ -398,12 +506,13 @@ export default function AmapNavigationPage() {
     return () => {
       destroyed = true;
       plannerRef.current?.clear?.();
+      clearRouteOverlays();
       mapRef.current?.destroy?.();
       mapRef.current = null;
       autoCompleteRef.current = null;
       placeSearchRef.current = null;
     };
-  }, [defaultCity]);
+  }, [clearRouteOverlays, defaultCity, resolveDefaultCityCenter]);
 
   useEffect(() => {
     if (startPoi && startPoi.name !== startKeyword) setStartPoi(null);
@@ -460,6 +569,7 @@ export default function AmapNavigationPage() {
     <div className="amap-route-card">
       <div className="amap-route-card__header">
         <div>
+          <span className="amap-route-card__eyebrow">Smart Route</span>
           <h2>路线导航</h2>
           <p>{message}</p>
         </div>
@@ -474,7 +584,12 @@ export default function AmapNavigationPage() {
             key={item.value}
             type="button"
             className={item.value === mode ? 'is-active' : ''}
-            onClick={() => setMode(item.value)}
+            onClick={() => {
+              setMode(item.value);
+              clearRouteOverlays();
+              setRouteSummary(null);
+              setRouteSteps([]);
+            }}
           >
             {item.label}
           </button>
@@ -489,6 +604,8 @@ export default function AmapNavigationPage() {
           onChange={(event) => {
             setStartKeyword(event.target.value);
             setRouteSummary(null);
+            setRouteSteps([]);
+            clearRouteOverlays();
           }}
           onFocus={() => fetchSuggestions('start', startKeyword)}
           onKeyDown={(event) => event.key === 'Enter' && planRoute()}
@@ -504,6 +621,8 @@ export default function AmapNavigationPage() {
           onChange={(event) => {
             setEndKeyword(event.target.value);
             setRouteSummary(null);
+            setRouteSteps([]);
+            clearRouteOverlays();
           }}
           onFocus={() => fetchSuggestions('end', endKeyword)}
           onKeyDown={(event) => event.key === 'Enter' && planRoute()}
@@ -512,16 +631,16 @@ export default function AmapNavigationPage() {
       </div>
 
       <div className="amap-route-selected">
-        <div>起点：{getPoiLabel(startPoi) || '-'}</div>
-        <div>终点：{getPoiLabel(endPoi) || '-'}</div>
+        <div><span>起点</span>{getPoiLabel(startPoi) || '-'}</div>
+        <div><span>终点</span>{getPoiLabel(endPoi) || '-'}</div>
       </div>
 
       <div className="amap-route-actions">
         <button type="button" onClick={planRoute} disabled={loading}>
-          {loading ? '规划中...' : '开始规划'}
+          {loading ? '规划中...' : '生成路线'}
         </button>
         <button type="button" className="amap-route-actions__secondary" onClick={resetRoute}>
-          清除路线
+          清除
         </button>
       </div>
 
@@ -538,16 +657,29 @@ export default function AmapNavigationPage() {
         </div>
       )}
 
-      <div className="amap-route-detail" ref={routePanelRef} />
+      {routeSteps.length > 0 && (
+        <div className="amap-route-steps">
+          {routeSteps.map((step, index) => (
+            <div className="amap-route-step" key={`${step.instruction}-${index}`}>
+              <b>{index + 1}</b>
+              <div>
+                <strong>{step.instruction}</strong>
+                <span>{[step.road, Number.isFinite(step.distance) ? formatDistance(step.distance) : ''].filter(Boolean).join(' · ')}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
   return (
     <div className="amap-route-page">
       <div className="amap-route-map" ref={mapContainerRef} />
+      <div className="amap-route-vignette" />
       <div className={`amap-route-panel ${mobileOpen ? 'is-open' : ''}`}>{panel}</div>
       <button className="amap-route-mobile-trigger" type="button" onClick={() => setMobileOpen(true)} aria-label="打开路线面板">
-        路线
+        <span>路线</span>
       </button>
       <div className={`amap-route-mobile-mask ${mobileOpen ? 'is-open' : ''}`} onClick={() => setMobileOpen(false)} />
     </div>
