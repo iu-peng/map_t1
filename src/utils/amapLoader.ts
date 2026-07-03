@@ -56,11 +56,21 @@ export function createRoutePlanner(
   panel: HTMLElement,
   options: { city: string; routeEffect: RouteEffect },
 ) {
+  if (mode === 'transit') {
+    return new AMap.Transfer({
+      map,
+      panel,
+      hideMarkers: true,
+      autoFitView: true,
+      city: options.city === '全国' ? '' : options.city,
+      policy: AMap.TransferPolicy?.LEAST_TIME,
+    });
+  }
+
   const commonOptions = {
-    map,
     panel,
     hideMarkers: true,
-    autoFitView: true,
+    autoFitView: false,
   };
 
   if (mode === 'driving') {
@@ -68,8 +78,7 @@ export function createRoutePlanner(
       ...commonOptions,
       policy: AMap.DrivingPolicy.LEAST_TIME,
       showTraffic: options.routeEffect === 'traffic',
-      isOutline: options.routeEffect !== 'simple',
-      outlineColor: '#ffffff',
+      isOutline: false,
     });
   }
 
@@ -77,15 +86,7 @@ export function createRoutePlanner(
     return new AMap.Riding(commonOptions);
   }
 
-  if (mode === 'walking') {
-    return new AMap.Walking(commonOptions);
-  }
-
-  return new AMap.Transfer({
-    ...commonOptions,
-    city: options.city === '全国' ? '' : options.city,
-    policy: AMap.TransferPolicy?.LEAST_TIME,
-  });
+  return new AMap.Walking(commonOptions);
 }
 
 export function formatDistance(meters?: number) {
