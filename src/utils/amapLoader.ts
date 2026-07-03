@@ -7,6 +7,7 @@ const AMAP_PLUGINS = [
   'AMap.ToolBar',
   'AMap.AutoComplete',
   'AMap.PlaceSearch',
+  'AMap.Geocoder',
   'AMap.Driving',
   'AMap.Riding',
   'AMap.Walking',
@@ -45,26 +46,26 @@ export function loadAMap() {
   return amapPromise;
 }
 
-export function createRoutePlanner(AMap: any, mode: TravelMode, map: any, panel: HTMLElement) {
-  const commonOptions = {
-    map,
-    panel,
-    hideMarkers: false,
-    autoFitView: true,
-  };
-
+export function createRoutePlanner(AMap: any, mode: TravelMode) {
   if (mode === 'driving') {
     return new AMap.Driving({
-      ...commonOptions,
       policy: AMap.DrivingPolicy.LEAST_TIME,
+      hideMarkers: true,
+      autoFitView: false,
     });
   }
 
   if (mode === 'riding') {
-    return new AMap.Riding(commonOptions);
+    return new AMap.Riding({
+      hideMarkers: true,
+      autoFitView: false,
+    });
   }
 
-  return new AMap.Walking(commonOptions);
+  return new AMap.Walking({
+    hideMarkers: true,
+    autoFitView: false,
+  });
 }
 
 export function formatDistance(meters?: number) {
