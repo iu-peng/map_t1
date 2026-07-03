@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { APP_MODULES, type AppModuleId } from '@/modules/registry';
 
@@ -13,7 +12,7 @@ export default function App() {
   const ActiveModule = activeModule.component;
 
   return (
-    <div className="flex h-full min-h-0 bg-slate-950 text-slate-950">
+    <div className="flex h-full min-h-0 overflow-hidden bg-slate-950 text-slate-950">
       <aside className="hidden w-72 shrink-0 border-r border-white/10 bg-slate-950 p-4 text-white md:flex md:flex-col">
         <div className="mb-6 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/20">
           <div className="text-xs font-medium uppercase tracking-[0.28em] text-blue-200/70">Gaode Map</div>
@@ -48,16 +47,8 @@ export default function App() {
         </nav>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col bg-slate-100 md:bg-slate-100">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white/80 px-4 backdrop-blur md:px-6">
-          <div>
-            <div className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">当前模块</div>
-            <h2 className="text-lg font-semibold tracking-tight">{activeModule.label}</h2>
-          </div>
-          <Card className="hidden rounded-full px-4 py-2 text-xs text-muted-foreground shadow-none sm:block">最多 5 个模块 · Web 侧边栏 · H5 底部 Tab</Card>
-        </header>
-
-        <div className="min-h-0 flex-1 p-3 pb-24 md:p-4 md:pb-4">
+      <main className="relative min-w-0 flex-1 overflow-hidden bg-slate-100">
+        <div className="absolute inset-x-0 top-0 bottom-[calc(74px+env(safe-area-inset-bottom))] min-h-0 overflow-hidden md:bottom-0">
           <ActiveModule />
         </div>
       </main>
