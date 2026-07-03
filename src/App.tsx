@@ -42,14 +42,14 @@ export default function App() {
                 variant="ghost"
                 title={sidebarCollapsed ? item.label : undefined}
                 className={cn(
-                  'h-auto w-full rounded-2xl text-left text-slate-300 transition-all duration-300 hover:bg-white/10 hover:text-white',
+                  'h-auto w-full rounded-2xl text-left text-slate-400 transition-all duration-300 hover:bg-white/10 hover:text-white',
                   sidebarCollapsed ? 'justify-center px-0 py-3' : 'justify-start gap-3 px-3 py-3',
-                  active && 'bg-white text-slate-950 shadow-lg hover:bg-white hover:text-slate-950',
+                  active && 'bg-transparent text-blue-400 hover:bg-white/10 hover:text-blue-300',
                 )}
                 onClick={() => setActiveModuleId(item.id)}
               >
-                <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10', active && 'bg-blue-600 text-white')}>
-                  <Icon className="h-4 w-4" aria-hidden="true" />
+                <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10 text-slate-400', active && 'text-blue-400')}>
+                  <Icon className={cn('h-4 w-4', active && 'stroke-[2.7]')} aria-hidden="true" />
                 </span>
                 <span
                   className={cn(
@@ -58,7 +58,7 @@ export default function App() {
                   )}
                 >
                   <span className="block text-sm font-semibold">{item.label}</span>
-                  <span className={cn('mt-0.5 block truncate text-xs text-slate-400', active && 'text-slate-500')}>{item.description}</span>
+                  <span className={cn('mt-0.5 block truncate text-xs text-slate-500', active && 'text-blue-300/80')}>{item.description}</span>
                 </span>
               </Button>
             );
