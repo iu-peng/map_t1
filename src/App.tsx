@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { APP_MODULES, type AppModuleId } from '@/modules/registry';
 
 export default function App() {
   const [activeModuleId, setActiveModuleId] = useState<AppModuleId>('navigation');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const activeModule = useMemo(
     () => APP_MODULES.find((item) => item.id === activeModuleId) || APP_MODULES[0],
     [activeModuleId],
@@ -12,8 +14,18 @@ export default function App() {
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden bg-slate-950 text-slate-950">
-      <aside className="hidden w-72 shrink-0 border-r border-white/10 bg-slate-950 p-4 text-white md:flex md:flex-col">
-        <div className="mb-6 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/20">
+      <aside
+        className={cn(
+          'hidden shrink-0 border-r border-white/10 bg-slate-950 p-4 text-white transition-[width,padding] duration-300 ease-in-out md:flex md:flex-col',
+          sidebarCollapsed ? 'w-[88px] px-3' : 'w-72',
+        )}
+      >
+        <div
+          className={cn(
+            'mb-6 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/20 transition-all duration-300 ease-in-out',
+            sidebarCollapsed && 'mb-3 max-h-0 border-transparent p-0 opacity-0',
+          )}
+        >
           <div className="text-xs font-medium uppercase tracking-[0.28em] text-blue-200/70">Gaode Map</div>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">个人地图工作台</h1>
           <p className="mt-2 text-sm leading-6 text-slate-300">模块化管理导航、地点、收藏与偏好设置。</p>
@@ -28,16 +40,23 @@ export default function App() {
                 key={item.id}
                 type="button"
                 variant="ghost"
+                title={sidebarCollapsed ? item.label : undefined}
                 className={cn(
-                  'h-auto w-full justify-start gap-3 rounded-2xl px-3 py-3 text-left text-slate-300 hover:bg-white/10 hover:text-white',
+                  'h-auto w-full rounded-2xl text-left text-slate-300 transition-all duration-300 hover:bg-white/10 hover:text-white',
+                  sidebarCollapsed ? 'justify-center px-0 py-3' : 'justify-start gap-3 px-3 py-3',
                   active && 'bg-white text-slate-950 shadow-lg hover:bg-white hover:text-slate-950',
                 )}
                 onClick={() => setActiveModuleId(item.id)}
               >
-                <span className={cn('grid h-9 w-9 place-items-center rounded-xl bg-white/10', active && 'bg-blue-600 text-white')}>
+                <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10', active && 'bg-blue-600 text-white')}>
                   <Icon className="h-4 w-4" aria-hidden="true" />
                 </span>
-                <span className="min-w-0 flex-1">
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 overflow-hidden transition-all duration-300',
+                    sidebarCollapsed ? 'w-0 flex-none opacity-0' : 'w-auto opacity-100',
+                  )}
+                >
                   <span className="block text-sm font-semibold">{item.label}</span>
                   <span className={cn('mt-0.5 block truncate text-xs text-slate-400', active && 'text-slate-500')}>{item.description}</span>
                 </span>
@@ -45,6 +64,20 @@ export default function App() {
             );
           })}
         </nav>
+
+        <div className="mt-auto flex justify-center border-t border-white/10 pt-4">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-2xl text-slate-300 hover:bg-white/10 hover:text-white"
+            onClick={() => setSidebarCollapsed((prev) => !prev)}
+            aria-label={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+            title={sidebarCollapsed ? '展开' : '收起'}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+          </Button>
+        </div>
       </aside>
 
       <main className="relative min-w-0 flex-1 overflow-hidden bg-slate-100">
