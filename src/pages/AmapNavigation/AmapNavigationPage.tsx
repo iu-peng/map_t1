@@ -23,10 +23,12 @@ type RouteSummary = {
 };
 
 type MarkerStyle = 'default' | 'label' | 'badge';
+type RouteColor = 'blue' | 'cyan' | 'green' | 'orange' | 'purple' | 'rose';
 
 type StyleConfig = {
   mapStyle: string;
   routeEffect: RouteEffect;
+  routeColor: RouteColor;
   markerStyle: MarkerStyle;
 };
 
@@ -38,29 +40,39 @@ const MODE_OPTIONS: Array<{ label: string; value: TravelMode }> = [
 ];
 
 const MAP_STYLE_OPTIONS = [
-  { label: '标准', desc: '信息完整，接近高德默认', value: 'amap://styles/normal', preview: 'normal' },
-  { label: '清新', desc: '浅色、干净，适合 H5', value: 'amap://styles/fresh', preview: 'fresh' },
-  { label: '灰白', desc: '商务低干扰风格', value: 'amap://styles/whitesmoke', preview: 'smoke' },
-  { label: '深蓝', desc: '暗色但不纯黑，默认使用', value: 'amap://styles/darkblue', preview: 'darkblue' },
-  { label: '夜晚', desc: '更深的夜间风格', value: 'amap://styles/dark', preview: 'dark' },
-  { label: '蓝色', desc: '偏导航产品感', value: 'amap://styles/blue', preview: 'blue' },
+  { label: '标准', value: 'amap://styles/normal', preview: 'normal' },
+  { label: '清新', value: 'amap://styles/fresh', preview: 'fresh' },
+  { label: '灰白', value: 'amap://styles/whitesmoke', preview: 'smoke' },
+  { label: '深蓝', value: 'amap://styles/darkblue', preview: 'darkblue' },
+  { label: '夜晚', value: 'amap://styles/dark', preview: 'dark' },
+  { label: '蓝色', value: 'amap://styles/blue', preview: 'blue' },
 ];
 
-const ROUTE_EFFECT_OPTIONS: Array<{ label: string; desc: string; value: RouteEffect }> = [
-  { label: '默认路线', desc: '使用矢量路线，缩放时跟随地图变化', value: 'default' },
-  { label: '实时路况', desc: '驾车模式预留路况配置，路线仍保持矢量跟随', value: 'traffic' },
-  { label: '简洁路线', desc: '减少轮廓效果，路线更清爽', value: 'simple' },
+const ROUTE_EFFECT_OPTIONS: Array<{ label: string; value: RouteEffect; preview: string }> = [
+  { label: '描边', value: 'default', preview: 'outline' },
+  { label: '高亮', value: 'traffic', preview: 'highlight' },
+  { label: '简洁', value: 'simple', preview: 'simple' },
 ];
 
-const MARKER_STYLE_OPTIONS: Array<{ label: string; desc: string; value: MarkerStyle }> = [
-  { label: '默认图标', desc: '高德默认 Marker，最原生', value: 'default' },
-  { label: '文字标签', desc: '默认图标 + 起点/终点文字', value: 'label' },
-  { label: '彩色徽标', desc: '绿色起点、红色终点，更醒目', value: 'badge' },
+const ROUTE_COLOR_OPTIONS: Array<{ label: string; value: RouteColor; color: string }> = [
+  { label: '蓝色', value: 'blue', color: '#3b82f6' },
+  { label: '青色', value: 'cyan', color: '#06b6d4' },
+  { label: '绿色', value: 'green', color: '#10b981' },
+  { label: '橙色', value: 'orange', color: '#f97316' },
+  { label: '紫色', value: 'purple', color: '#8b5cf6' },
+  { label: '玫红', value: 'rose', color: '#f43f5e' },
+];
+
+const MARKER_STYLE_OPTIONS: Array<{ label: string; value: MarkerStyle; preview: string }> = [
+  { label: '默认', value: 'default', preview: 'default' },
+  { label: '标签', value: 'label', preview: 'label' },
+  { label: '徽标', value: 'badge', preview: 'badge' },
 ];
 
 const DEFAULT_STYLE_CONFIG: StyleConfig = {
   mapStyle: 'amap://styles/darkblue',
   routeEffect: 'default',
+  routeColor: 'blue',
   markerStyle: 'label',
 };
 
@@ -157,11 +169,8 @@ function getRoutePath(route: any): [number, number][] {
     .filter(Boolean) as [number, number][];
 }
 
-function getRouteColor(mode: TravelMode, routeEffect: RouteEffect) {
-  if (routeEffect === 'traffic' && mode === 'driving') return '#22c55e';
-  if (mode === 'walking') return '#f97316';
-  if (mode === 'riding') return '#10b981';
-  return '#3b82f6';
+function getRouteColor(routeColor: RouteColor) {
+  return ROUTE_COLOR_OPTIONS.find((item) => item.value === routeColor)?.color || '#3b82f6';
 }
 
 function isDarkStyle(mapStyle: string) {
@@ -282,13 +291,14 @@ export default function AmapNavigationPage() {
     if (path.length < 2) return false;
 
     const overlays: any[] = [];
+    const routeColor = getRouteColor(styleConfig.routeColor);
 
     if (styleConfig.routeEffect !== 'simple') {
       overlays.push(new AMap.Polyline({
         path,
         strokeColor: '#ffffff',
         strokeOpacity: isDarkStyle(styleConfig.mapStyle) ? 0.44 : 0.92,
-        strokeWeight: 11,
+        strokeWeight: styleConfig.routeEffect === 'traffic' ? 14 : 11,
         lineJoin: 'round',
         lineCap: 'round',
         zIndex: 58,
@@ -297,9 +307,9 @@ export default function AmapNavigationPage() {
 
     overlays.push(new AMap.Polyline({
       path,
-      strokeColor: getRouteColor(mode, styleConfig.routeEffect),
+      strokeColor: routeColor,
       strokeOpacity: 0.96,
-      strokeWeight: styleConfig.routeEffect === 'simple' ? 6 : 7,
+      strokeWeight: styleConfig.routeEffect === 'traffic' ? 9 : styleConfig.routeEffect === 'simple' ? 6 : 7,
       lineJoin: 'round',
       lineCap: 'round',
       zIndex: 59,
@@ -313,7 +323,7 @@ export default function AmapNavigationPage() {
     setMarker('start', start);
     setMarker('end', end);
     return true;
-  }, [clearRouteOverlays, mode, setMarker, styleConfig.mapStyle, styleConfig.routeEffect]);
+  }, [clearRouteOverlays, setMarker, styleConfig.mapStyle, styleConfig.routeColor, styleConfig.routeEffect]);
 
   const searchPoi = useCallback((keyword: string): Promise<PoiPoint> => {
     const placeSearch = placeSearchRef.current;
@@ -654,8 +664,8 @@ export default function AmapNavigationPage() {
     <div className="amap-route-config">
       <div className="amap-route-config__header">
         <div>
-          <h3>地图样式配置</h3>
-          <p>选择后点击确认，立即应用到底图、路线和起终点。</p>
+          <h3>样式配置</h3>
+          <p>选择后确认应用，路线颜色会在重新规划后生效。</p>
         </div>
         <button type="button" onClick={() => setConfigOpen(false)}>×</button>
       </div>
@@ -672,7 +682,6 @@ export default function AmapNavigationPage() {
             >
               <i className={`amap-map-preview is-${item.preview}`} />
               <strong>{item.label}</strong>
-              <span>{item.desc}</span>
             </button>
           ))}
         </div>
@@ -680,33 +689,51 @@ export default function AmapNavigationPage() {
 
       <section>
         <h4>路线效果</h4>
-        <div className="amap-config-list">
+        <div className="amap-config-grid">
           {ROUTE_EFFECT_OPTIONS.map((item) => (
             <button
               key={item.value}
               type="button"
-              className={draftConfig.routeEffect === item.value ? 'is-active' : ''}
+              className={`amap-config-card is-route-effect ${draftConfig.routeEffect === item.value ? 'is-active' : ''}`}
               onClick={() => setDraftConfig((prev) => ({ ...prev, routeEffect: item.value }))}
             >
+              <i className={`amap-route-preview is-${item.preview}`} />
               <strong>{item.label}</strong>
-              <span>{item.desc}</span>
             </button>
           ))}
         </div>
       </section>
 
       <section>
-        <h4>起点终点</h4>
-        <div className="amap-config-list">
+        <h4>路线颜色</h4>
+        <div className="amap-config-grid">
+          {ROUTE_COLOR_OPTIONS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={`amap-config-card is-route-color ${draftConfig.routeColor === item.value ? 'is-active' : ''}`}
+              style={{ '--route-color': item.color } as Record<string, string>}
+              onClick={() => setDraftConfig((prev) => ({ ...prev, routeColor: item.value }))}
+            >
+              <i className="amap-color-preview" />
+              <strong>{item.label}</strong>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h4>起终点</h4>
+        <div className="amap-config-grid">
           {MARKER_STYLE_OPTIONS.map((item) => (
             <button
               key={item.value}
               type="button"
-              className={draftConfig.markerStyle === item.value ? 'is-active' : ''}
+              className={`amap-config-card is-marker ${draftConfig.markerStyle === item.value ? 'is-active' : ''}`}
               onClick={() => setDraftConfig((prev) => ({ ...prev, markerStyle: item.value }))}
             >
+              <i className={`amap-marker-preview is-${item.preview}`} />
               <strong>{item.label}</strong>
-              <span>{item.desc}</span>
             </button>
           ))}
         </div>
