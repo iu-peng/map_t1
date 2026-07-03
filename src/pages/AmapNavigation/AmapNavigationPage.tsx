@@ -175,8 +175,9 @@ export default function AmapNavigationPage() {
       placeSearch.search(keyword.trim(), (status: string, result: any) => {
         const pois = result?.poiList?.pois || [];
         const first = pois[0];
+        const firstLngLat = toLngLat(first?.location);
 
-        if (status !== 'complete' || !first?.location) {
+        if (status !== 'complete' || !firstLngLat) {
           reject(new Error(`没有找到地点：${keyword}`));
           return;
         }
@@ -186,7 +187,7 @@ export default function AmapNavigationPage() {
           address: [normalizeAddress(first.pname), normalizeAddress(first.cityname), normalizeAddress(first.adname), normalizeAddress(first.address)]
             .filter(Boolean)
             .join(''),
-          lnglat: [first.location.lng, first.location.lat],
+          lnglat: firstLngLat,
         });
       });
     });
@@ -250,6 +251,7 @@ export default function AmapNavigationPage() {
         }
 
         setMarker(type, poi);
+        setRouteSummary(null);
         mapRef.current?.setZoomAndCenter?.(15, poi.lnglat);
         setMessage(`已选择${type === 'start' ? '起点' : '终点'}：${getPoiLabel(poi)}`);
       } catch (error) {
@@ -479,7 +481,7 @@ export default function AmapNavigationPage() {
         ))}
       </div>
 
-      <label className="amap-route-field">
+      <div className="amap-route-field">
         <span>起点</span>
         <input
           value={startKeyword}
@@ -492,9 +494,9 @@ export default function AmapNavigationPage() {
           onKeyDown={(event) => event.key === 'Enter' && planRoute()}
         />
         {renderSuggestions('start', startSuggestions)}
-      </label>
+      </div>
 
-      <label className="amap-route-field">
+      <div className="amap-route-field">
         <span>终点</span>
         <input
           value={endKeyword}
@@ -507,7 +509,7 @@ export default function AmapNavigationPage() {
           onKeyDown={(event) => event.key === 'Enter' && planRoute()}
         />
         {renderSuggestions('end', endSuggestions)}
-      </label>
+      </div>
 
       <div className="amap-route-selected">
         <div>起点：{getPoiLabel(startPoi) || '-'}</div>
