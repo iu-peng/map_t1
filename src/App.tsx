@@ -9,7 +9,6 @@ export default function App() {
     () => APP_MODULES.find((item) => item.id === activeModuleId) || APP_MODULES[0],
     [activeModuleId],
   );
-  const ActiveModule = activeModule.component;
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden bg-slate-950 text-slate-950">
@@ -50,7 +49,22 @@ export default function App() {
 
       <main className="relative min-w-0 flex-1 overflow-hidden bg-slate-100">
         <div className="absolute inset-x-0 top-0 bottom-[calc(74px+env(safe-area-inset-bottom))] min-h-0 overflow-hidden md:bottom-0">
-          <ActiveModule />
+          {APP_MODULES.map((item) => {
+            const active = item.id === activeModuleId;
+            const ModuleComponent = item.component;
+            return (
+              <section
+                key={item.id}
+                aria-hidden={!active}
+                className={cn(
+                  'absolute inset-0 min-h-0 overflow-hidden bg-slate-100',
+                  active ? 'z-10 opacity-100' : 'pointer-events-none z-0 opacity-0',
+                )}
+              >
+                <ModuleComponent />
+              </section>
+            );
+          })}
         </div>
       </main>
 
