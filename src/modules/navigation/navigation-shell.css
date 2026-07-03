@@ -64,6 +64,30 @@
   overflow: hidden;
 }
 
+.navigation-module .amap-route-card__close {
+  display: grid !important;
+  place-items: center;
+  position: absolute;
+  top: 12px;
+  left: -52px;
+  z-index: 90;
+  width: 40px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  border: 1px solid #d6dee9 !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: #475569 !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+  font-size: 24px !important;
+  line-height: 1 !important;
+}
+
+.navigation-module .amap-route-card__close:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
 .navigation-module .amap-route-mode button,
 .navigation-module .amap-route-actions__secondary,
 .navigation-module .amap-route-config__actions button:first-child,
