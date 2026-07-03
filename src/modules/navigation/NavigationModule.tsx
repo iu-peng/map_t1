@@ -3,7 +3,7 @@ import './navigation-shell.css';
 
 export function NavigationModule() {
   return (
-    <section className="navigation-module h-full min-h-0 overflow-hidden rounded-3xl border bg-card shadow-sm">
+    <section className="navigation-module h-full min-h-0 overflow-hidden bg-card">
       <AmapNavigationPage />
     </section>
   );
