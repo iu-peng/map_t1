@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { Navigation2, SlidersHorizontal } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import AmapNavigationPage from '@/pages/AmapNavigation/AmapNavigationPage';
 import './navigation-shell.css';
 
@@ -13,12 +15,45 @@ function clickPlanButton(root: HTMLElement) {
   planButton.click();
 }
 
+function clickInnerDrawerTrigger(root: HTMLElement) {
+  const trigger = root.querySelector<HTMLButtonElement>('.amap-route-page > .amap-route-mobile-trigger');
+  trigger?.click();
+}
+
 function keepDrawerOpen(root: HTMLElement) {
   const panel = root.querySelector('.amap-route-panel');
-  const trigger = root.querySelector<HTMLButtonElement>('.amap-route-mobile-trigger');
   if (!panel || panel.classList.contains('is-open')) return;
   panel.classList.add('is-open');
-  trigger?.click();
+  clickInnerDrawerTrigger(root);
+}
+
+function locateCurrentPosition() {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      const map = (window as any).__gaodeMapLastMap;
+      const AMap = (window as any).AMap;
+      if (!map) return;
+
+      const position: [number, number] = [coords.longitude, coords.latitude];
+      map.setZoomAndCenter?.(15, position);
+
+      if (!AMap?.Marker) return;
+      const oldMarker = (window as any).__gaodeMapCurrentLocationMarker;
+      if (oldMarker) map.remove?.(oldMarker);
+
+      const marker = new AMap.Marker({
+        position,
+        zIndex: 130,
+        title: '当前位置',
+      });
+      map.add?.(marker);
+      (window as any).__gaodeMapCurrentLocationMarker = marker;
+    },
+    () => undefined,
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+  );
 }
 
 export function NavigationModule() {
@@ -107,6 +142,24 @@ export function NavigationModule() {
   return (
     <section ref={rootRef} className="navigation-module h-full min-h-0 overflow-hidden bg-card">
       <AmapNavigationPage />
+      <Button
+        type="button"
+        size="icon"
+        className="navigation-settings-trigger"
+        aria-label="打开导航设置"
+        onClick={() => rootRef.current && clickInnerDrawerTrigger(rootRef.current)}
+      >
+        <SlidersHorizontal className="h-5 w-5" aria-hidden="true" />
+      </Button>
+      <Button
+        type="button"
+        size="icon"
+        className="navigation-current-location-trigger"
+        aria-label="定位当前位置"
+        onClick={locateCurrentPosition}
+      >
+        <Navigation2 className="h-5 w-5" aria-hidden="true" />
+      </Button>
     </section>
   );
 }
