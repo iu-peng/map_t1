@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createRoutePlanner, formatDistance, formatDuration, loadAMap, TravelMode } from '../../utils/amapLoader';
+import { createRoutePlanner, formatDistance, formatDuration, loadAMap } from '../../utils/amapLoader';
+import type { TravelMode } from '../../utils/amapLoader';
 import './AmapNavigationPage.css';
 
 type PoiPoint = {
@@ -19,7 +20,29 @@ const MODE_OPTIONS: Array<{ label: string; value: TravelMode }> = [
   { label: '步行', value: 'walking' },
 ];
 
-const DEFAULT_CENTER: [number, number] = [116.397428, 39.90923];
+const FALLBACK_CENTER: [number, number] = [116.397428, 39.90923];
+
+const CITY_CENTER_MAP: Record<string, [number, number]> = {
+  太原: [112.549248, 37.857014],
+  太原市: [112.549248, 37.857014],
+  北京: [116.397428, 39.90923],
+  北京市: [116.397428, 39.90923],
+  上海: [121.473667, 31.230525],
+  上海市: [121.473667, 31.230525],
+  广州: [113.264385, 23.129112],
+  广州市: [113.264385, 23.129112],
+  深圳: [114.057868, 22.543099],
+  深圳市: [114.057868, 22.543099],
+};
+
+function normalizeCity(value?: string) {
+  return value?.trim() || '全国';
+}
+
+function getCityCenter(city: string): [number, number] {
+  if (!city || city === '全国') return FALLBACK_CENTER;
+  return CITY_CENTER_MAP[city] || FALLBACK_CENTER;
+}
 
 function parseLngLat(value: string): [number, number] | null {
   const match = value.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
@@ -56,7 +79,9 @@ export default function AmapNavigationPage() {
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const defaultCity = useMemo(() => import.meta.env.VITE_AMAP_DEFAULT_CITY || '全国', []);
+  const defaultCity = useMemo(() => normalizeCity(import.meta.env.VITE_AMAP_DEFAULT_CITY), []);
+  const startPlaceholder = defaultCity === '全国' ? '请输入起点，如 北京南站' : `请输入起点，如 ${defaultCity}站`;
+  const endPlaceholder = defaultCity === '全国' ? '请输入终点，如 天安门' : `请输入终点，如 ${defaultCity}市政府`;
 
   const setMarker = useCallback((type: 'start' | 'end', poi: PoiPoint) => {
     const AMap = amapRef.current;
@@ -132,6 +157,7 @@ export default function AmapNavigationPage() {
 
     if (!startKeyword.trim() || !endKeyword.trim()) {
       setMessage('请先输入起点和终点');
+      setMobileOpen(true);
       return;
     }
 
@@ -173,6 +199,7 @@ export default function AmapNavigationPage() {
     } catch (error) {
       const err = error as Error;
       setMessage(err.message || '路线规划失败');
+      setMobileOpen(true);
     } finally {
       setLoading(false);
     }
@@ -182,8 +209,8 @@ export default function AmapNavigationPage() {
     plannerRef.current?.clear?.();
     routePanelRef.current && (routePanelRef.current.innerHTML = '');
     setRouteSummary(null);
-    setMessage('已清除路线，可重新输入起终点');
-  }, []);
+    setMessage(`已清除路线，当前默认城市：${defaultCity}`);
+  }, [defaultCity]);
 
   useEffect(() => {
     let destroyed = false;
@@ -195,8 +222,8 @@ export default function AmapNavigationPage() {
 
         amapRef.current = AMap;
         const map = new AMap.Map(mapContainerRef.current, {
-          zoom: 12,
-          center: DEFAULT_CENTER,
+          zoom: defaultCity === '全国' ? 5 : 12,
+          center: getCityCenter(defaultCity),
           viewMode: '2D',
           resizeEnable: true,
         });
@@ -204,13 +231,19 @@ export default function AmapNavigationPage() {
         map.addControl(new AMap.Scale());
         map.addControl(new AMap.ToolBar({ position: { right: '24px', top: '24px' } }));
 
+        if (defaultCity !== '全国') {
+          map.setCity?.(defaultCity, () => {
+            if (!destroyed) map.setZoom?.(12);
+          });
+        }
+
         placeSearchRef.current = new AMap.PlaceSearch({
           city: defaultCity,
-          citylimit: false,
+          citylimit: defaultCity !== '全国',
         });
 
         mapRef.current = map;
-        setMessage('地图加载完成，请输入起点和终点');
+        setMessage(`地图加载完成，当前默认城市：${defaultCity}，请输入起点和终点`);
       } catch (error) {
         const err = error as Error;
         setMessage(err.message || '地图加载失败，请检查高德 Key 配置');
@@ -242,7 +275,7 @@ export default function AmapNavigationPage() {
           <h2>路线导航</h2>
           <p>{message}</p>
         </div>
-        <button className="amap-route-card__close" type="button" onClick={() => setMobileOpen(false)}>
+        <button className="amap-route-card__close" type="button" onClick={() => setMobileOpen(false)} aria-label="关闭路线面板">
           ×
         </button>
       </div>
@@ -264,7 +297,7 @@ export default function AmapNavigationPage() {
         <span>起点</span>
         <input
           value={startKeyword}
-          placeholder="请输入起点，如 北京南站"
+          placeholder={startPlaceholder}
           onChange={(event) => setStartKeyword(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && planRoute()}
         />
@@ -274,7 +307,7 @@ export default function AmapNavigationPage() {
         <span>终点</span>
         <input
           value={endKeyword}
-          placeholder="请输入终点，如 天安门"
+          placeholder={endPlaceholder}
           onChange={(event) => setEndKeyword(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && planRoute()}
         />
@@ -315,7 +348,7 @@ export default function AmapNavigationPage() {
     <div className="amap-route-page">
       <div className="amap-route-map" ref={mapContainerRef} />
       <div className={`amap-route-panel ${mobileOpen ? 'is-open' : ''}`}>{panel}</div>
-      <button className="amap-route-mobile-trigger" type="button" onClick={() => setMobileOpen(true)}>
+      <button className="amap-route-mobile-trigger" type="button" onClick={() => setMobileOpen(true)} aria-label="打开路线面板">
         路线
       </button>
       <div className={`amap-route-mobile-mask ${mobileOpen ? 'is-open' : ''}`} onClick={() => setMobileOpen(false)} />
