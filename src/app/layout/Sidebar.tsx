@@ -1,18 +1,17 @@
 import { PanelLeftClose } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { AppModule, AppModuleId } from '../modules';
+import type { AppModule } from '../modules';
 
 type SidebarProps = {
   modules: AppModule[];
-  activeId: AppModuleId;
   collapsed: boolean;
-  onSelect: (id: AppModuleId) => void;
   onCollapsedChange: (collapsed: boolean) => void;
 };
 
-/** 桌面端左侧导航栏（可收起）。 */
-export function Sidebar({ modules, activeId, collapsed, onSelect, onCollapsedChange }: SidebarProps) {
+/** 桌面端左侧导航栏（可收起），基于路由高亮当前模块。 */
+export function Sidebar({ modules, collapsed, onCollapsedChange }: SidebarProps) {
   return (
     <aside
       className={cn(
@@ -33,41 +32,44 @@ export function Sidebar({ modules, activeId, collapsed, onSelect, onCollapsedCha
 
       <nav className={cn('space-y-2 transition-all duration-300', collapsed && 'space-y-0 pt-4')}>
         {modules.map((item) => {
-          const active = item.id === activeId;
           const Icon = item.icon;
           return (
-            <Button
+            <NavLink
               key={item.id}
-              type="button"
-              variant="ghost"
+              to={item.path}
               title={item.label}
-              className={cn(
-                'group h-auto w-full rounded-none text-left text-slate-400 transition-all duration-300 hover:bg-transparent hover:text-slate-300',
-                collapsed ? 'h-14 cursor-pointer justify-center px-0 py-0' : 'justify-start gap-3 rounded-2xl px-3 py-3',
-                active && 'bg-transparent text-blue-400 hover:bg-transparent hover:text-blue-300',
-              )}
-              onClick={() => onSelect(item.id)}
+              className={({ isActive }) =>
+                cn(
+                  'group flex h-auto w-full items-center text-left text-slate-400 transition-all duration-300 hover:text-slate-300',
+                  collapsed ? 'h-14 justify-center px-0 py-0' : 'justify-start gap-3 rounded-2xl px-3 py-3',
+                  isActive && 'text-blue-400 hover:text-blue-300',
+                )
+              }
             >
-              <span
-                className={cn(
-                  'grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10 text-slate-400 transition-colors duration-200 group-hover:bg-blue-500/15 group-hover:text-blue-300',
-                  active && 'bg-blue-500/20 text-blue-400 group-hover:bg-blue-500/25 group-hover:text-blue-300',
-                )}
-              >
-                <Icon className={cn('h-4 w-4', active && 'stroke-[2.7]')} aria-hidden="true" />
-              </span>
-              <span
-                className={cn(
-                  'min-w-0 flex-1 overflow-hidden transition-all duration-300',
-                  collapsed ? 'w-0 flex-none opacity-0' : 'w-auto opacity-100',
-                )}
-              >
-                <span className="block text-sm font-semibold">{item.label}</span>
-                <span className={cn('mt-0.5 block truncate text-xs text-slate-500', active && 'text-blue-300/80')}>
-                  {item.description}
-                </span>
-              </span>
-            </Button>
+              {({ isActive }) => (
+                <>
+                  <span
+                    className={cn(
+                      'grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10 text-slate-400 transition-colors duration-200 group-hover:bg-blue-500/15 group-hover:text-blue-300',
+                      isActive && 'bg-blue-500/20 text-blue-400 group-hover:bg-blue-500/25 group-hover:text-blue-300',
+                    )}
+                  >
+                    <Icon className={cn('h-4 w-4', isActive && 'stroke-[2.7]')} aria-hidden="true" />
+                  </span>
+                  <span
+                    className={cn(
+                      'min-w-0 flex-1 overflow-hidden transition-all duration-300',
+                      collapsed ? 'w-0 flex-none opacity-0' : 'w-auto opacity-100',
+                    )}
+                  >
+                    <span className="block text-sm font-semibold">{item.label}</span>
+                    <span className={cn('mt-0.5 block truncate text-xs text-slate-500', isActive && 'text-blue-300/80')}>
+                      {item.description}
+                    </span>
+                  </span>
+                </>
+              )}
+            </NavLink>
           );
         })}
       </nav>

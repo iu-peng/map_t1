@@ -7,15 +7,21 @@ export type AppModuleId = 'navigation' | 'route-plan' | 'poi-search' | 'favorite
 
 export type AppModule = {
   id: AppModuleId;
+  /** 路由路径。 */
+  path: string;
   label: string;
   description: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   component: ComponentType;
 };
 
+/** 默认路由（首页）。 */
+export const DEFAULT_MODULE_PATH = '/navigation';
+
 export const APP_MODULES: AppModule[] = [
   {
     id: 'navigation',
+    path: '/navigation',
     label: '导航',
     description: '起终点路线规划与地图样式配置',
     icon: Compass,
@@ -23,6 +29,7 @@ export const APP_MODULES: AppModule[] = [
   },
   {
     id: 'route-plan',
+    path: '/route-plan',
     label: '路线',
     description: '模块 2 占位',
     icon: MapPinned,
@@ -32,6 +39,7 @@ export const APP_MODULES: AppModule[] = [
   },
   {
     id: 'poi-search',
+    path: '/poi-search',
     label: '地点',
     description: '模块 3 占位',
     icon: Search,
@@ -41,6 +49,7 @@ export const APP_MODULES: AppModule[] = [
   },
   {
     id: 'favorites',
+    path: '/favorites',
     label: '收藏',
     description: '模块 4 占位',
     icon: Star,
@@ -50,6 +59,7 @@ export const APP_MODULES: AppModule[] = [
   },
   {
     id: 'settings',
+    path: '/settings',
     label: '配置',
     description: '模块 5 占位',
     icon: SlidersHorizontal,
