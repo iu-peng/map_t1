@@ -9,7 +9,7 @@ type UseAmapMapOptions = {
 
 export type AmapMapController = {
   /** 地图容器 ref，挂到渲染地图的 div 上。 */
-  containerRef: RefObject<HTMLDivElement>;
+  containerRef: RefObject<HTMLDivElement | null>;
   /** 高德命名空间实例 ref。 */
   amapRef: RefObject<AMapNamespace | null>;
   /** 地图实例 ref。 */
@@ -21,6 +21,15 @@ export type AmapMapController = {
   /** 地图与服务是否初始化完成。 */
   ready: boolean;
 };
+
+/**
+ * 从 display:none 恢复显示后，强制地图重排一次，避免灰块。
+ * （被 <Activity> 隐藏时容器 display:none，不会触发地图自身的 resize。）
+ */
+function refreshMapSize(map: AMapMap) {
+  if (typeof map.resize === 'function') map.resize();
+  else window.dispatchEvent(new Event('resize'));
+}
 
 /** 定位默认城市中心，失败时回退到北京。 */
 function resolveDefaultCityCenter(AMap: AMapNamespace, city: string): Promise<LngLat> {
@@ -55,15 +64,22 @@ export function useAmapMap({ defaultCity, onMessage }: UseAmapMapOptions): AmapM
   onMessageRef.current = onMessage;
 
   useEffect(() => {
-    let destroyed = false;
+    // 地图作为「会话级引擎」只创建一次，被 <Activity> 隐藏时不销毁；
+    // effect 因隐藏被清理、再次可见时重新执行，这里只需刷新尺寸即可。
+    if (mapRef.current) {
+      refreshMapSize(mapRef.current);
+      return;
+    }
+
+    let cancelled = false;
 
     async function initMap() {
       try {
         const AMap = await loadAMap();
-        if (destroyed || !containerRef.current) return;
+        if (cancelled || !containerRef.current) return;
 
         const cityCenter = await resolveDefaultCityCenter(AMap, defaultCity);
-        if (destroyed || !containerRef.current) return;
+        if (cancelled || !containerRef.current) return;
 
         amapRef.current = AMap;
         const map = new AMap.Map(containerRef.current, {
@@ -83,7 +99,7 @@ export function useAmapMap({ defaultCity, onMessage }: UseAmapMapOptions): AmapM
 
         if (defaultCity !== '全国') {
           map.setCity?.(defaultCity, () => {
-            if (!destroyed) map.setZoom?.(DEFAULT_CITY_ZOOM);
+            if (!cancelled) map.setZoom?.(DEFAULT_CITY_ZOOM);
           });
         }
 
@@ -101,13 +117,9 @@ export function useAmapMap({ defaultCity, onMessage }: UseAmapMapOptions): AmapM
 
     initMap();
 
+    // 仅取消进行中的异步初始化；不销毁地图（保活），资源随页面卸载由浏览器回收。
     return () => {
-      destroyed = true;
-      mapRef.current?.destroy?.();
-      mapRef.current = null;
-      autoCompleteRef.current = null;
-      placeSearchRef.current = null;
-      setReady(false);
+      cancelled = true;
     };
   }, [defaultCity]);
 

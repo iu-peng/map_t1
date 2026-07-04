@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { Activity, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import type { AppModule } from './modules';
 
 function isActivePath(pathname: string, modulePath: string): boolean {
@@ -8,10 +7,11 @@ function isActivePath(pathname: string, modulePath: string): boolean {
 }
 
 /**
- * 类似 Vue `<keep-alive>` 的路由缓存宿主：
- * - 每个模块在「首次被访问」时才挂载（懒加载），未访问的模块不进入 DOM；
- * - 一旦挂载便常驻缓存，切换 Tab 时只切换可见性，不再卸载重建；
- * - 因此导航页（含地图实例）在 Tab 间来回切换时不会重新初始化。
+ * 基于 React 19.2 官方 `<Activity>` 的路由缓存宿主（对齐 Vue `<keep-alive>`）：
+ * - 模块「首次被访问」时才挂载（懒加载），未访问的不进入 DOM；
+ * - 已挂载的模块常驻缓存，切 Tab 时用 `<Activity mode="hidden">`（display:none）隐藏，
+ *   React 会保留其 state 与 DOM，仅卸载副作用（effect），切回来自动恢复；
+ * - 地图等昂贵引擎在 `useAmapMap` 中按会话级保活，隐藏时不销毁，因此不会重新初始化。
  */
 export function KeepAliveModules({ modules }: { modules: AppModule[] }) {
   const { pathname } = useLocation();
@@ -31,18 +31,12 @@ export function KeepAliveModules({ modules }: { modules: AppModule[] }) {
         .filter((item) => mountedIds.has(item.id))
         .map((item) => {
           const ModuleComponent = item.component;
-          const active = item.id === activeId;
           return (
-            <section
-              key={item.id}
-              aria-hidden={!active}
-              className={cn(
-                'absolute inset-0 min-h-0 overflow-hidden bg-slate-100',
-                active ? 'z-10 opacity-100' : 'pointer-events-none z-0 opacity-0',
-              )}
-            >
-              <ModuleComponent />
-            </section>
+            <Activity key={item.id} mode={item.id === activeId ? 'visible' : 'hidden'}>
+              <section className="absolute inset-0 min-h-0 overflow-hidden bg-slate-100">
+                <ModuleComponent />
+              </section>
+            </Activity>
           );
         })}
     </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useRef, useState, type RefObject } from 'react';
 import {
   createRoutePlanner,
   getFirstRoute,
@@ -261,14 +261,8 @@ export function useRoutePlanner({
     [amapRef, clearRouteOverlays, createPlanner, mode, onMessage, renderVectorRoute, setMarker],
   );
 
-  const destroy = useCallback(() => {
-    plannerRef.current?.clear?.();
-    clearRouteOverlays();
-    clearSelectionMarkers();
-  }, [clearRouteOverlays, clearSelectionMarkers]);
-
-  // 卸载时先释放路线与标记（此时地图尚未销毁），再由 useAmapMap 销毁地图。
-  useEffect(() => destroy, [destroy]);
+  // 说明：不在卸载/隐藏时清理路线与标记。地图被 <Activity> 隐藏（display:none）
+  // 时会保活，overlay 挂在常驻的地图实例上，切回来即可原样恢复。
 
   return {
     routePanelRef,
@@ -279,6 +273,5 @@ export function useRoutePlanner({
     searchPoi,
     clearRoute,
     planRoute,
-    destroy,
   };
 }
