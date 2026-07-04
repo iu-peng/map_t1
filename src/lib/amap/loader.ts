@@ -1,8 +1,5 @@
 import AMapLoader from '@amap/amap-jsapi-loader';
-
-export type TravelMode = 'driving' | 'riding' | 'walking' | 'transit';
-
-export type RouteEffect = 'default' | 'traffic' | 'simple';
+import type { AMapNamespace, LngLat, RouteEffect, TravelMode } from './types';
 
 const AMAP_PLUGINS = [
   'AMap.Scale',
@@ -16,23 +13,25 @@ const AMAP_PLUGINS = [
   'AMap.Transfer',
 ];
 
-const DEFAULT_ZOOMS: [number, number] = [3.6, 20];
+/** 地图缩放层级范围 [最小, 最大] */
+const DEFAULT_ZOOMS: LngLat = [3.6, 20];
 
-let amapPromise: Promise<any> | null = null;
+let amapPromise: Promise<AMapNamespace> | null = null;
 
-function patchAMapMap(AMap: any) {
+/**
+ * 为 AMap.Map 注入默认 zooms，避免每个调用方重复传参。
+ * 通过包装构造函数实现，只打补丁一次。
+ */
+function patchAMapMap(AMap: AMapNamespace): AMapNamespace {
   if (!AMap?.Map || AMap.__gaodeMapPatched) return AMap;
 
   const OriginalMap = AMap.Map;
 
   function PatchedMap(this: unknown, container: HTMLElement | string, options: Record<string, unknown> = {}) {
-    const nextOptions = {
+    return new OriginalMap(container, {
       ...options,
       zooms: options.zooms || DEFAULT_ZOOMS,
-    };
-    const map = new OriginalMap(container, nextOptions);
-    (window as any).__gaodeMapLastMap = map;
-    return map;
+    });
   }
 
   PatchedMap.prototype = OriginalMap.prototype;
@@ -43,17 +42,16 @@ function patchAMapMap(AMap: any) {
   return AMap;
 }
 
-export function loadAMap() {
+/** 加载高德 JSAPI（带缓存，全局仅加载一次）。 */
+export function loadAMap(): Promise<AMapNamespace> {
   if (typeof window === 'undefined') {
     return Promise.reject(new Error('高德地图 JSAPI 只能在浏览器环境加载'));
   }
 
   if (amapPromise) return amapPromise;
 
-  const env = import.meta.env;
-  const key = env.VITE_AMAP_JS_API_KEY;
-  const securityJsCode = env.VITE_AMAP_SECURITY_JS_CODE;
-  const serviceHost = env.VITE_AMAP_SERVICE_HOST;
+  const { VITE_AMAP_JS_API_KEY: key, VITE_AMAP_SECURITY_JS_CODE: securityJsCode, VITE_AMAP_SERVICE_HOST: serviceHost } =
+    import.meta.env;
 
   if (!key) {
     return Promise.reject(new Error('缺少 VITE_AMAP_JS_API_KEY，请先在环境变量中配置高德 Web端(JS API) Key'));
@@ -65,22 +63,19 @@ export function loadAMap() {
     window._AMapSecurityConfig = { securityJsCode };
   }
 
-  amapPromise = AMapLoader.load({
-    key,
-    version: '2.0',
-    plugins: AMAP_PLUGINS,
-  }).then(patchAMapMap);
+  amapPromise = AMapLoader.load({ key, version: '2.0', plugins: AMAP_PLUGINS }).then(patchAMapMap);
 
   return amapPromise;
 }
 
+/** 根据出行方式创建对应的高德路线规划器。 */
 export function createRoutePlanner(
-  AMap: any,
+  AMap: AMapNamespace,
   mode: TravelMode,
-  map: any,
+  map: AMapNamespace,
   panel: HTMLElement,
   options: { city: string; routeEffect: RouteEffect },
-) {
+): AMapNamespace {
   if (mode === 'transit') {
     return new AMap.Transfer({
       map,
@@ -92,11 +87,7 @@ export function createRoutePlanner(
     });
   }
 
-  const commonOptions = {
-    panel,
-    hideMarkers: true,
-    autoFitView: false,
-  };
+  const commonOptions = { panel, hideMarkers: true, autoFitView: false };
 
   if (mode === 'driving') {
     return new AMap.Driving({
@@ -112,18 +103,4 @@ export function createRoutePlanner(
   }
 
   return new AMap.Walking(commonOptions);
-}
-
-export function formatDistance(meters?: number) {
-  if (!meters && meters !== 0) return '-';
-  if (meters < 1000) return `${Math.round(meters)} m`;
-  return `${(meters / 1000).toFixed(1)} km`;
-}
-
-export function formatDuration(seconds?: number) {
-  if (!seconds && seconds !== 0) return '-';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.ceil((seconds % 3600) / 60);
-  if (h <= 0) return `${m} 分钟`;
-  return `${h} 小时 ${m} 分钟`;
 }

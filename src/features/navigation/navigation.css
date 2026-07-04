@@ -1,0 +1,74 @@
+/**
+ * 这里只放「高德 JSAPI 注入的第三方 DOM」的样式覆盖——
+ * 这些节点由高德在运行时插入，无法用 Tailwind 直接标注，
+ * 组件自身的样式一律使用 Tailwind。
+ */
+
+/* 比例尺：透明化并让位于左下角定位按钮。 */
+.amap-map-root .amap-scalecontrol,
+.amap-map-root .amap-scalecontrol .amap-scale-text,
+.amap-map-root .amap-scalecontrol .amap-scale-line,
+.amap-map-root .amap-scalecontrol div {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.amap-map-root .amap-scalecontrol {
+  left: 74px !important;
+  bottom: 18px !important;
+}
+
+.amap-map-root .amap-copyright,
+.amap-map-root .amap-logo {
+  left: 18px !important;
+  bottom: 2px !important;
+}
+
+/* 路线详情：高德注入的列表容器，去掉其自带的高度限制交给外层滚动。 */
+.amap-route-detail .amap-lib-driving,
+.amap-route-detail .amap-lib-transfer,
+.amap-route-detail .amap-lib-walking,
+.amap-route-detail .amap-lib-riding {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* 徽标样式的起终点标记（通过 marker content 注入的 HTML）。 */
+.amap-route-badge-marker {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 8px;
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.25);
+  transform: rotate(-45deg);
+}
+
+.amap-route-badge-marker span {
+  display: block;
+  transform: rotate(45deg);
+}
+
+.amap-route-badge-marker.is-start {
+  background: #12b76a;
+}
+
+.amap-route-badge-marker.is-end {
+  background: #f04438;
+}
+
+@media (max-width: 767px) {
+  .amap-map-root .amap-scalecontrol {
+    left: 68px !important;
+    bottom: 16px !important;
+  }
+
+  .amap-map-root .amap-copyright,
+  .amap-map-root .amap-logo {
+    left: 14px !important;
+    bottom: 2px !important;
+  }
+}

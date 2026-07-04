@@ -1,9 +1,9 @@
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import './styles.css';
+import './styles/globals.css';
 
-const el = window['document']['getElementById']('root');
+const rootElement = document.getElementById('root');
 
-if (el) {
-  createRoot(el).render(<App />);
+if (rootElement) {
+  createRoot(rootElement).render(<App />);
 }
