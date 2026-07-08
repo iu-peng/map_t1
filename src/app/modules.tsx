@@ -1,9 +1,10 @@
 import type { ComponentType, SVGProps } from 'react';
-import { Compass, MapPinned, Search, SlidersHorizontal, Star } from 'lucide-react';
+import { Compass, Search, SlidersHorizontal, Star, Wallet } from 'lucide-react';
 import { NavigationModule } from '@/features/navigation/NavigationModule';
 import { PlaceholderModule } from '@/features/placeholders/PlaceholderModule';
+import { WalletModule } from '@/features/wallet/WalletModule';
 
-export type AppModuleId = 'navigation' | 'route-plan' | 'poi-search' | 'favorites' | 'settings';
+export type AppModuleId = 'navigation' | 'wallet' | 'poi-search' | 'favorites' | 'settings';
 
 export type AppModule = {
   id: AppModuleId;
@@ -28,14 +29,12 @@ export const APP_MODULES: AppModule[] = [
     component: NavigationModule,
   },
   {
-    id: 'route-plan',
-    path: '/route-plan',
-    label: '路线',
-    description: '模块 2 占位',
-    icon: MapPinned,
-    component: () => (
-      <PlaceholderModule title="路线规划" description="模块 2 占位，后续可接入多点路线、收藏路线、路线对比等能力。" badge="模块 2" />
-    ),
+    id: 'wallet',
+    path: '/wallet',
+    label: '钱包',
+    description: '只读链上数据、地址余额与钱包环境检测',
+    icon: Wallet,
+    component: WalletModule,
   },
   {
     id: 'poi-search',
