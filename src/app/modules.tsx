@@ -32,7 +32,7 @@ export const APP_MODULES: AppModule[] = [
     id: 'wallet',
     path: '/wallet',
     label: '钱包',
-    description: '只读链上数据、地址余额与钱包环境检测',
+    description: '主流币行情、涨跌幅与只读链上查询',
     icon: Wallet,
     component: WalletModule,
   },
