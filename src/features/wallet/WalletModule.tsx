@@ -665,14 +665,17 @@ export function WalletModule() {
     try {
       const coins = await fetchMarkets();
       setMarketCoins(coins);
-      if (!expandedRowId) setExpandedRowId(coins[0]?.id || null);
+      setExpandedRowId((prev) => {
+        if (prev === null) return null;
+        return coins.some((coin) => coin.id === prev) ? prev : coins[0]?.id || null;
+      });
       setMarketUpdatedAt(new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (error) {
       setMarketError((error as Error).message || '行情读取失败');
     } finally {
       setMarketLoading(false);
     }
-  }, [expandedRowId]);
+  }, []);
 
   const loadSnapshot = useCallback(async () => {
     setSnapshotLoading(true);
