@@ -4,22 +4,28 @@ import {
   AlertTriangle,
   ArrowUpRight,
   BadgeCheck,
+  BarChart3,
   CircleDollarSign,
   Clock3,
+  Coins,
   Copy,
   DatabaseZap,
   Gauge,
   Globe2,
   Landmark,
+  LineChart,
   Loader2,
   PlugZap,
   RefreshCcw,
   Search,
   ShieldCheck,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
   Wallet,
   Wifi,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +38,6 @@ type ChainConfig = {
   symbol: string;
   explorer: string;
   gradient: string;
-  accent: string;
   rpcUrls: string[];
   sampleAddress: string;
   sampleLabel: string;
@@ -55,6 +60,22 @@ type AddressProfile = {
   explorerUrl: string;
 };
 
+type CoinMarket = {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  current_price: number;
+  market_cap: number;
+  market_cap_rank: number;
+  total_volume: number;
+  high_24h: number;
+  low_24h: number;
+  price_change_percentage_24h: number | null;
+  price_change_percentage_7d_in_currency?: number | null;
+  sparkline_in_7d?: { price: number[] };
+};
+
 type EthereumProvider = {
   isMetaMask?: boolean;
   request?: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -67,6 +88,21 @@ type WalletStatus = {
   chainId?: string;
 };
 
+const MARKET_IDS = [
+  'bitcoin',
+  'ethereum',
+  'solana',
+  'binancecoin',
+  'ripple',
+  'dogecoin',
+  'cardano',
+  'chainlink',
+  'avalanche-2',
+  'the-open-network',
+  'tron',
+  'polkadot',
+];
+
 const CHAINS: ChainConfig[] = [
   {
     id: 1,
@@ -75,22 +111,9 @@ const CHAINS: ChainConfig[] = [
     symbol: 'ETH',
     explorer: 'https://etherscan.io',
     gradient: 'from-blue-600 via-indigo-600 to-violet-600',
-    accent: 'text-blue-600',
     rpcUrls: ['https://ethereum-rpc.publicnode.com', 'https://rpc.ankr.com/eth'],
     sampleAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
     sampleLabel: 'Vitalik 公开地址',
-  },
-  {
-    id: 11155111,
-    name: 'Sepolia Testnet',
-    shortName: 'Sepolia',
-    symbol: 'SepoliaETH',
-    explorer: 'https://sepolia.etherscan.io',
-    gradient: 'from-emerald-600 via-teal-600 to-cyan-600',
-    accent: 'text-emerald-600',
-    rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com', 'https://rpc.sepolia.org'],
-    sampleAddress: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
-    sampleLabel: 'Beacon Deposit Contract',
   },
   {
     id: 8453,
@@ -99,7 +122,6 @@ const CHAINS: ChainConfig[] = [
     symbol: 'ETH',
     explorer: 'https://basescan.org',
     gradient: 'from-sky-600 via-blue-600 to-blue-800',
-    accent: 'text-sky-600',
     rpcUrls: ['https://base-rpc.publicnode.com', 'https://mainnet.base.org'],
     sampleAddress: '0x0000000000000000000000000000000000000000',
     sampleLabel: '零地址',
@@ -111,16 +133,26 @@ const CHAINS: ChainConfig[] = [
     symbol: 'POL',
     explorer: 'https://polygonscan.com',
     gradient: 'from-fuchsia-600 via-purple-600 to-indigo-600',
-    accent: 'text-fuchsia-600',
     rpcUrls: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon-rpc.com'],
     sampleAddress: '0x0000000000000000000000000000000000001010',
     sampleLabel: 'Polygon 原生币合约',
+  },
+  {
+    id: 11155111,
+    name: 'Sepolia Testnet',
+    shortName: 'Sepolia',
+    symbol: 'SepoliaETH',
+    explorer: 'https://sepolia.etherscan.io',
+    gradient: 'from-emerald-600 via-teal-600 to-cyan-600',
+    rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com', 'https://rpc.sepolia.org'],
+    sampleAddress: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
+    sampleLabel: 'Beacon Deposit Contract',
   },
 ];
 
 const DEFAULT_ADDRESS = CHAINS[0].sampleAddress;
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
-const CARD = 'rounded-3xl border border-slate-200/70 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur';
+const CARD = 'rounded-[28px] border border-slate-200/70 bg-white/92 shadow-[0_18px_58px_rgba(15,23,42,0.08)] backdrop-blur';
 const MUTED_CARD = 'rounded-2xl border border-slate-200/70 bg-slate-50/80';
 
 declare global {
@@ -152,6 +184,22 @@ function formatGwei(hex: string) {
   return Math.round(gwei).toString();
 }
 
+function formatCurrency(value?: number | null, fractionDigits = 2) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: fractionDigits }).format(value);
+}
+
+function formatCompactCurrency(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 2 }).format(value);
+}
+
+function formatPercent(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)}%`;
+}
+
 function shortAddress(address?: string) {
   if (!address) return '-';
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -160,6 +208,22 @@ function shortAddress(address?: string) {
 function getEthereumProvider() {
   if (typeof window === 'undefined') return undefined;
   return window.ethereum;
+}
+
+async function fetchMarkets(): Promise<CoinMarket[]> {
+  const params = new URLSearchParams({
+    vs_currency: 'usd',
+    ids: MARKET_IDS.join(','),
+    order: 'market_cap_desc',
+    per_page: '12',
+    page: '1',
+    sparkline: 'true',
+    price_change_percentage: '7d',
+    locale: 'zh',
+  });
+  const response = await fetch(`https://api.coingecko.com/api/v3/coins/markets?${params.toString()}`);
+  if (!response.ok) throw new Error(`行情接口暂时不可用：HTTP ${response.status}`);
+  return (await response.json()) as CoinMarket[];
 }
 
 async function rpcCall<T>(chain: ChainConfig, method: RpcMethod, params: unknown[] = []): Promise<{ value: T; rpcUrl: string; latencyMs: number }> {
@@ -233,18 +297,111 @@ async function detectWallet(): Promise<WalletStatus> {
   }
 }
 
-function StatCard({ icon: Icon, label, value, hint }: { icon: typeof Activity; label: string; value: string; hint: string }) {
+function ChangeBadge({ value, compact = false }: { value?: number | null; compact?: boolean }) {
+  const positive = typeof value === 'number' && value >= 0;
+  const Icon = positive ? TrendingUp : TrendingDown;
   return (
-    <div className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-sm backdrop-blur">
-      <div className="flex items-center justify-between gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/10">
-          <Icon className="h-4 w-4" aria-hidden="true" />
-        </div>
-        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Live</span>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-1 font-semibold',
+        compact ? 'text-[11px]' : 'text-xs',
+        positive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700',
+      )}
+    >
+      <Icon className={cn(compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
+      {formatPercent(value)}
+    </span>
+  );
+}
+
+function Sparkline({ prices, change }: { prices?: number[]; change?: number | null }) {
+  const points = useMemo(() => {
+    if (!prices || prices.length < 2) return '';
+    const width = 180;
+    const height = 54;
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const range = max - min || 1;
+    return prices
+      .map((price, index) => {
+        const x = (index / (prices.length - 1)) * width;
+        const y = height - ((price - min) / range) * height;
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(' ');
+  }, [prices]);
+
+  return (
+    <svg viewBox="0 0 180 54" className="h-12 w-full overflow-visible" role="img" aria-label="7日趋势">
+      <polyline
+        points={points}
+        fill="none"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={typeof change === 'number' && change < 0 ? 'stroke-rose-500' : 'stroke-emerald-500'}
+      />
+    </svg>
+  );
+}
+
+function MarketMetric({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: string; hint: string }) {
+  return (
+    <div className="rounded-2xl border border-white/70 bg-white/80 p-3.5 shadow-sm backdrop-blur md:p-4">
+      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+        <span className="grid h-8 w-8 place-items-center rounded-xl bg-slate-950 text-white">
+          <Icon className="h-4 w-4" />
+        </span>
+        {label}
       </div>
-      <div className="mt-4 text-sm text-slate-500">{label}</div>
-      <div className="mt-1 truncate text-2xl font-semibold tracking-tight text-slate-950">{value}</div>
-      <div className="mt-1 text-xs text-slate-400">{hint}</div>
+      <div className="mt-3 truncate text-xl font-semibold tracking-tight text-slate-950 md:text-2xl">{value}</div>
+      <div className="mt-1 truncate text-xs text-slate-400">{hint}</div>
+    </div>
+  );
+}
+
+function FocusCoinCard({ coin }: { coin: CoinMarket }) {
+  return (
+    <div className="min-w-[240px] rounded-[26px] border border-white/70 bg-white/90 p-4 shadow-[0_16px_44px_rgba(15,23,42,0.08)] md:min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <img src={coin.image} alt="" className="h-11 w-11 rounded-full" />
+          <div className="min-w-0">
+            <div className="truncate text-base font-semibold text-slate-950">{coin.name}</div>
+            <div className="mt-0.5 text-xs uppercase text-slate-400">#{coin.market_cap_rank} · {coin.symbol}</div>
+          </div>
+        </div>
+        <ChangeBadge value={coin.price_change_percentage_24h} compact />
+      </div>
+      <div className="mt-4 flex items-end justify-between gap-4">
+        <div>
+          <div className="text-2xl font-semibold tracking-tight text-slate-950">{formatCurrency(coin.current_price, coin.current_price > 100 ? 0 : 2)}</div>
+          <div className="mt-1 text-xs text-slate-500">24h 高 {formatCurrency(coin.high_24h, 2)} · 低 {formatCurrency(coin.low_24h, 2)}</div>
+        </div>
+      </div>
+      <div className="mt-3">
+        <Sparkline prices={coin.sparkline_in_7d?.price} change={coin.price_change_percentage_7d_in_currency} />
+      </div>
+    </div>
+  );
+}
+
+function CoinRow({ coin }: { coin: CoinMarket }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1.3fr)_auto] gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm md:grid-cols-[minmax(0,1.3fr)_0.85fr_0.75fr_0.75fr] md:items-center md:px-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <img src={coin.image} alt="" className="h-9 w-9 rounded-full" />
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-slate-950 md:text-base">{coin.name}</div>
+          <div className="text-xs uppercase text-slate-400">#{coin.market_cap_rank} · {coin.symbol}</div>
+        </div>
+      </div>
+      <div className="text-right md:text-left">
+        <div className="text-sm font-semibold text-slate-950 md:text-base">{formatCurrency(coin.current_price, coin.current_price > 100 ? 0 : 2)}</div>
+        <div className="mt-1 md:hidden"><ChangeBadge value={coin.price_change_percentage_24h} compact /></div>
+      </div>
+      <div className="hidden md:block"><ChangeBadge value={coin.price_change_percentage_24h} /></div>
+      <div className="hidden text-sm text-slate-600 md:block">{formatCompactCurrency(coin.market_cap)}</div>
     </div>
   );
 }
@@ -259,66 +416,161 @@ function ChainPill({ chain, active, onClick }: { chain: ChainConfig; active: boo
       type="button"
       onClick={onClick}
       className={cn(
-        'group relative overflow-hidden rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5',
-        active ? 'border-slate-950 bg-slate-950 text-white shadow-xl shadow-slate-950/20' : 'border-slate-200 bg-white/80 text-slate-700 hover:border-slate-300',
+        'rounded-2xl border px-3 py-2 text-left text-sm transition-all',
+        active ? 'border-slate-950 bg-slate-950 text-white shadow-lg shadow-slate-950/15' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300',
       )}
     >
-      <div className={cn('absolute inset-x-0 top-0 h-1 bg-gradient-to-r', chain.gradient)} />
-      <div className="flex items-center gap-2">
-        <span className={cn('grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br text-white', chain.gradient)}>
-          <Globe2 className="h-4 w-4" />
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold">{chain.shortName}</div>
-          <div className={cn('text-xs', active ? 'text-white/60' : 'text-slate-400')}>Chain ID {chain.id}</div>
-        </div>
-      </div>
+      <div className="font-semibold">{chain.shortName}</div>
+      <div className={cn('mt-0.5 text-xs', active ? 'text-white/55' : 'text-slate-400')}>Chain {chain.id}</div>
     </button>
   );
 }
 
 function WalletEnvironmentCard({ walletStatus, onConnect, connecting }: { walletStatus: WalletStatus; onConnect: () => void; connecting: boolean }) {
   return (
-    <div className={cn(CARD, 'p-5')}>
-      <div className="flex items-start justify-between gap-4">
+    <div className={cn(CARD, 'p-4 md:p-5')}>
+      <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
             <PlugZap className="h-4 w-4" /> 钱包环境
           </div>
-          <h3 className="mt-2 text-xl font-semibold text-slate-950">浏览器钱包检测</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-500">没有钱包也能读链上公开数据；安装钱包后可连接账户展示你的地址和网络。</p>
+          <h3 className="mt-1 text-lg font-semibold text-slate-950">{walletStatus.installed ? '检测到浏览器钱包' : '未安装钱包'}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-500">未安装钱包也能看行情；安装后可连接账户展示地址。</p>
         </div>
-        <span className={cn('rounded-full px-3 py-1 text-xs font-medium', walletStatus.installed ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
-          {walletStatus.installed ? '已检测到钱包' : '未安装钱包'}
+        <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', walletStatus.installed ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
+          {walletStatus.installed ? '可连接' : '只读模式'}
         </span>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <div className={MUTED_CARD + ' p-3'}>
-          <div className="text-xs text-slate-500">Provider</div>
-          <div className="mt-1 font-semibold text-slate-950">{walletStatus.installed ? (walletStatus.isMetaMask ? 'MetaMask' : 'Injected Wallet') : '未检测到'}</div>
-        </div>
-        <div className={MUTED_CARD + ' p-3'}>
-          <div className="text-xs text-slate-500">账户</div>
-          <div className="mt-1 font-semibold text-slate-950">{shortAddress(walletStatus.address)}</div>
-        </div>
-        <div className={MUTED_CARD + ' p-3'}>
-          <div className="text-xs text-slate-500">钱包网络</div>
-          <div className="mt-1 font-semibold text-slate-950">{walletStatus.chainId || '-'}</div>
-        </div>
+      <div className="mt-4 grid gap-2 text-sm">
+        <div className={cn(MUTED_CARD, 'flex items-center justify-between px-3 py-2')}><span className="text-slate-500">Provider</span><strong>{walletStatus.installed ? (walletStatus.isMetaMask ? 'MetaMask' : 'Injected') : '-'}</strong></div>
+        <div className={cn(MUTED_CARD, 'flex items-center justify-between px-3 py-2')}><span className="text-slate-500">账户</span><strong>{shortAddress(walletStatus.address)}</strong></div>
+        <div className={cn(MUTED_CARD, 'flex items-center justify-between px-3 py-2')}><span className="text-slate-500">网络</span><strong>{walletStatus.chainId || '-'}</strong></div>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <Button type="button" onClick={onConnect} disabled={!walletStatus.installed || connecting} className="rounded-2xl">
           {connecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wallet className="mr-2 h-4 w-4" />}
-          {walletStatus.address ? '刷新钱包状态' : '连接钱包'}
+          {walletStatus.address ? '刷新钱包' : '连接钱包'}
         </Button>
         {!walletStatus.installed && (
           <a className="text-sm font-medium text-blue-600 hover:text-blue-700" href="https://metamask.io/download/" target="_blank" rel="noreferrer">
-            安装 MetaMask <ArrowUpRight className="inline h-3.5 w-3.5" />
+            安装钱包 <ArrowUpRight className="inline h-3.5 w-3.5" />
           </a>
         )}
       </div>
+    </div>
+  );
+}
+
+function ChainSnapshotCard({
+  activeChain,
+  snapshot,
+  loading,
+  error,
+  onRefresh,
+  onChainChange,
+}: {
+  activeChain: ChainConfig;
+  snapshot: ChainSnapshot | null;
+  loading: boolean;
+  error: string;
+  onRefresh: () => void;
+  onChainChange: (id: number) => void;
+}) {
+  return (
+    <div className={cn(CARD, 'p-4 md:p-5')}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-500"><DatabaseZap className="h-4 w-4" /> 链上状态</div>
+          <h3 className="mt-1 text-lg font-semibold text-slate-950">{activeChain.name}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-500">辅助信息：区块高度、Gas 与 RPC 延迟。</p>
+        </div>
+        <Button type="button" size="icon" variant="outline" className="rounded-2xl" onClick={onRefresh} disabled={loading}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+        </Button>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {CHAINS.map((chain) => <ChainPill key={chain.id} chain={chain} active={chain.id === activeChain.id} onClick={() => onChainChange(chain.id)} />)}
+      </div>
+
+      {error ? <div className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-700">{error}</div> : null}
+
+      <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+        <div className={cn(MUTED_CARD, 'p-3')}><div className="text-slate-500">区块</div><strong className="mt-1 block text-slate-950">{snapshot ? snapshot.blockNumber.toLocaleString() : '-'}</strong></div>
+        <div className={cn(MUTED_CARD, 'p-3')}><div className="text-slate-500">Gas</div><strong className="mt-1 block text-slate-950">{snapshot ? `${snapshot.gasGwei} Gwei` : '-'}</strong></div>
+        <div className={cn(MUTED_CARD, 'p-3')}><div className="text-slate-500">延迟</div><strong className="mt-1 block text-slate-950">{snapshot ? `${snapshot.latencyMs} ms` : '-'}</strong></div>
+        <div className={cn(MUTED_CARD, 'p-3')}><div className="text-slate-500">更新</div><strong className="mt-1 block text-slate-950">{snapshot?.updatedAt || '-'}</strong></div>
+      </div>
+    </div>
+  );
+}
+
+function AddressQueryCard({
+  activeChain,
+  addressInput,
+  setAddressInput,
+  addressProfile,
+  loading,
+  error,
+  copied,
+  onCopy,
+  onQuery,
+  onUseSample,
+}: {
+  activeChain: ChainConfig;
+  addressInput: string;
+  setAddressInput: (value: string) => void;
+  addressProfile: AddressProfile | null;
+  loading: boolean;
+  error: string;
+  copied: boolean;
+  onCopy: () => void;
+  onQuery: () => void;
+  onUseSample: () => void;
+}) {
+  return (
+    <div className={cn(CARD, 'p-4 md:p-5')}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-500"><Search className="h-4 w-4" /> 地址查询</div>
+          <h3 className="mt-1 text-lg font-semibold text-slate-950">余额 / 合约状态</h3>
+        </div>
+        <button type="button" onClick={onUseSample} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">示例</button>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <input
+          value={addressInput}
+          onChange={(event) => setAddressInput(event.target.value)}
+          onKeyDown={(event) => event.key === 'Enter' && onQuery()}
+          placeholder="0x..."
+          className="h-11 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 font-mono text-sm outline-none transition focus:border-slate-950 focus:ring-4 focus:ring-slate-950/10"
+        />
+        <Button type="button" size="icon" className="h-11 w-11 rounded-2xl" onClick={onQuery} disabled={loading}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+        </Button>
+      </div>
+      {error && <div className="mt-3 text-sm text-rose-600">{error}</div>}
+
+      {addressProfile ? (
+        <div className="mt-4 grid gap-2 text-sm">
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-950 px-3 py-3 text-white">
+            <span className="min-w-0 truncate font-mono">{shortAddress(addressProfile.address)}</span>
+            <button type="button" onClick={onCopy} className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/10 hover:bg-white/15" aria-label="复制地址">
+              {copied ? <BadgeCheck className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className={cn(MUTED_CARD, 'p-3')}><div className="text-slate-500">余额</div><strong className="mt-1 block text-slate-950">{addressProfile.balance} {addressProfile.balanceSymbol}</strong></div>
+            <div className={cn(MUTED_CARD, 'p-3')}><div className="text-slate-500">类型</div><strong className="mt-1 block text-slate-950">{addressProfile.isContract ? '合约' : '账户'}</strong></div>
+          </div>
+          <a href={addressProfile.explorerUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
+            打开 {activeChain.shortName} Explorer <ArrowUpRight className="h-4 w-4" />
+          </a>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -328,6 +580,10 @@ export function WalletModule() {
   const [snapshot, setSnapshot] = useState<ChainSnapshot | null>(null);
   const [snapshotError, setSnapshotError] = useState('');
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [marketCoins, setMarketCoins] = useState<CoinMarket[]>([]);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketError, setMarketError] = useState('');
+  const [marketUpdatedAt, setMarketUpdatedAt] = useState('');
   const [addressInput, setAddressInput] = useState(DEFAULT_ADDRESS);
   const [addressProfile, setAddressProfile] = useState<AddressProfile | null>(null);
   const [addressError, setAddressError] = useState('');
@@ -337,6 +593,26 @@ export function WalletModule() {
   const [copied, setCopied] = useState(false);
 
   const activeChain = useMemo(() => CHAINS.find((item) => item.id === activeChainId) || CHAINS[0], [activeChainId]);
+  const focusCoins = marketCoins.slice(0, 3);
+  const btc = marketCoins.find((coin) => coin.id === 'bitcoin');
+  const eth = marketCoins.find((coin) => coin.id === 'ethereum');
+  const totalTrackedMarketCap = useMemo(() => marketCoins.reduce((sum, coin) => sum + (coin.market_cap || 0), 0), [marketCoins]);
+  const risingCount = useMemo(() => marketCoins.filter((coin) => (coin.price_change_percentage_24h || 0) >= 0).length, [marketCoins]);
+  const marketMood = marketCoins.length ? `${risingCount}/${marketCoins.length} 上涨` : '-';
+
+  const loadMarket = useCallback(async () => {
+    setMarketLoading(true);
+    setMarketError('');
+    try {
+      const coins = await fetchMarkets();
+      setMarketCoins(coins);
+      setMarketUpdatedAt(new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    } catch (error) {
+      setMarketError((error as Error).message || '行情读取失败');
+    } finally {
+      setMarketLoading(false);
+    }
+  }, []);
 
   const loadSnapshot = useCallback(async () => {
     setSnapshotLoading(true);
@@ -355,7 +631,7 @@ export function WalletModule() {
     async (nextAddress = addressInput) => {
       const normalized = nextAddress.trim();
       if (!ADDRESS_RE.test(normalized)) {
-        setAddressError('请输入合法的 EVM 地址，格式为 0x 开头的 40 位十六进制字符');
+        setAddressError('请输入合法的 EVM 地址');
         setAddressProfile(null);
         return;
       }
@@ -391,12 +667,16 @@ export function WalletModule() {
   }, [loadWalletStatus]);
 
   useEffect(() => {
+    void loadMarket();
+  }, [loadMarket]);
+
+  useEffect(() => {
     void loadSnapshot();
   }, [loadSnapshot]);
 
   useEffect(() => {
-    void queryAddress(activeChain.sampleAddress);
     setAddressInput(activeChain.sampleAddress);
+    void queryAddress(activeChain.sampleAddress);
   }, [activeChain, queryAddress]);
 
   useEffect(() => {
@@ -411,179 +691,130 @@ export function WalletModule() {
   }, [addressProfile]);
 
   return (
-    <section className="h-full min-h-0 overflow-auto bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_34%),linear-gradient(135deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)] px-4 py-5 pb-[calc(96px+env(safe-area-inset-bottom))] md:px-6 md:py-6 md:pb-6">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <div className="relative overflow-hidden rounded-[32px] border border-white/70 bg-slate-950 p-5 text-white shadow-[0_24px_80px_rgba(15,23,42,0.24)] md:p-7">
-          <div className={cn('absolute inset-0 bg-gradient-to-br opacity-80', activeChain.gradient)} />
-          <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/20 blur-3xl" />
-          <div className="absolute bottom-0 left-1/2 h-40 w-96 -translate-x-1/2 rounded-full bg-black/20 blur-3xl" />
-          <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+    <section className="h-full min-h-0 overflow-auto bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_34%),linear-gradient(135deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)] px-3 py-4 pb-[calc(90px+env(safe-area-inset-bottom))] md:px-6 md:py-6 md:pb-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 md:gap-5">
+        <div className="relative overflow-hidden rounded-[30px] border border-white/70 bg-slate-950 p-4 text-white shadow-[0_24px_80px_rgba(15,23,42,0.24)] md:p-7">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900" />
+          <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-400/25 blur-3xl" />
+          <div className="absolute -bottom-20 left-12 h-56 w-56 rounded-full bg-violet-400/20 blur-3xl" />
+          <div className="relative grid gap-4 lg:grid-cols-[1fr_420px] lg:items-end">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-sm backdrop-blur">
-                <Sparkles className="h-4 w-4" /> Web3 只读看板 · 无需 Key · 无需钱包
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-3 py-1 text-xs backdrop-blur md:text-sm">
+                <Sparkles className="h-4 w-4" /> 加密货币行情 · 无需 Key · 实时读取
               </div>
-              <h1 className="mt-5 max-w-2xl text-3xl font-semibold tracking-tight md:text-5xl">钱包</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/76 md:text-base">
-                使用公共 RPC 读取真实链上数据。你现在没有钱包也可以查看区块、Gas、RPC 延迟，并查询任意公开地址余额。
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">钱包行情</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/72 md:text-base">
+                第一屏集中展示币价、涨跌幅、市值和成交量；链上地址查询与钱包连接放在下方作为辅助能力。
               </p>
             </div>
-            <div className="grid gap-3 rounded-3xl border border-white/15 bg-white/12 p-4 backdrop-blur-md">
-              <div className="flex items-center justify-between text-sm text-white/70">
-                <span>当前网络</span>
-                <span className="rounded-full bg-white/15 px-2 py-1 text-xs">Chain ID {activeChain.id}</span>
+            <div className="grid grid-cols-2 gap-2 rounded-3xl border border-white/15 bg-white/10 p-3 backdrop-blur-md md:grid-cols-4 lg:grid-cols-2">
+              <div className="rounded-2xl bg-white/12 p-3">
+                <div className="text-xs text-white/55">BTC</div>
+                <div className="mt-1 text-lg font-semibold">{btc ? formatCurrency(btc.current_price, 0) : '-'}</div>
+                <div className="mt-1"><ChangeBadge value={btc?.price_change_percentage_24h} compact /></div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-slate-950">
-                  <Landmark className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-xl font-semibold">{activeChain.name}</div>
-                  <div className="text-sm text-white/60">{activeChain.symbol} · Public RPC</div>
-                </div>
+              <div className="rounded-2xl bg-white/12 p-3">
+                <div className="text-xs text-white/55">ETH</div>
+                <div className="mt-1 text-lg font-semibold">{eth ? formatCurrency(eth.current_price, 0) : '-'}</div>
+                <div className="mt-1"><ChangeBadge value={eth?.price_change_percentage_24h} compact /></div>
               </div>
-              <Button type="button" variant="secondary" className="rounded-2xl bg-white text-slate-950 hover:bg-white/90" onClick={loadSnapshot} disabled={snapshotLoading}>
-                {snapshotLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-                刷新链状态
-              </Button>
+              <div className="rounded-2xl bg-white/12 p-3">
+                <div className="text-xs text-white/55">观察市值</div>
+                <div className="mt-1 text-lg font-semibold">{formatCompactCurrency(totalTrackedMarketCap)}</div>
+                <div className="mt-1 text-xs text-white/50">Top {marketCoins.length || 12}</div>
+              </div>
+              <div className="rounded-2xl bg-white/12 p-3">
+                <div className="text-xs text-white/55">市场情绪</div>
+                <div className="mt-1 text-lg font-semibold">{marketMood}</div>
+                <div className="mt-1 text-xs text-white/50">24h 涨跌统计</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {CHAINS.map((chain) => <ChainPill key={chain.id} chain={chain} active={chain.id === activeChain.id} onClick={() => setActiveChainId(chain.id)} />)}
+        <div className="grid gap-3 md:grid-cols-4">
+          <MarketMetric icon={CircleDollarSign} label="BTC 价格" value={btc ? formatCurrency(btc.current_price, 0) : '-'} hint="Bitcoin / USD" />
+          <MarketMetric icon={LineChart} label="ETH 价格" value={eth ? formatCurrency(eth.current_price, 0) : '-'} hint="Ethereum / USD" />
+          <MarketMetric icon={BarChart3} label="观察市值" value={formatCompactCurrency(totalTrackedMarketCap)} hint="当前列表合计" />
+          <MarketMetric icon={Activity} label="市场情绪" value={marketMood} hint={`更新 ${marketUpdatedAt || '-'}`} />
         </div>
 
-        {snapshotError && (
-          <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <AlertTriangle className="h-4 w-4" /> {snapshotError}
-          </div>
-        )}
-
-        <div className="grid gap-4 lg:grid-cols-4">
-          {snapshotLoading && !snapshot ? (
-            Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="rounded-2xl border border-white/70 bg-white/80 p-4">
-                <SkeletonLine className="w-20" />
-                <SkeletonLine className="mt-6 h-8 w-32" />
-                <SkeletonLine className="mt-3 w-24" />
-              </div>
-            ))
-          ) : (
-            <>
-              <StatCard icon={DatabaseZap} label="区块高度" value={snapshot ? snapshot.blockNumber.toLocaleString() : '-'} hint="eth_blockNumber · latest" />
-              <StatCard icon={Gauge} label="Gas 价格" value={snapshot ? `${snapshot.gasGwei} Gwei` : '-'} hint="eth_gasPrice" />
-              <StatCard icon={Wifi} label="RPC 延迟" value={snapshot ? `${snapshot.latencyMs} ms` : '-'} hint={snapshot?.rpcUrl.replace('https://', '') || 'public rpc'} />
-              <StatCard icon={Clock3} label="更新时间" value={snapshot?.updatedAt || '-'} hint={`network id ${snapshot?.networkId || '-'}`} />
-            </>
-          )}
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className={cn(CARD, 'overflow-hidden')}>
-            <div className="border-b border-slate-100 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                    <Search className="h-4 w-4" /> 地址查询
-                  </div>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">查询任意公开地址</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">读取余额和合约状态，不需要钱包授权，也不会发起任何交易。</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddressInput(activeChain.sampleAddress);
-                    void queryAddress(activeChain.sampleAddress);
-                  }}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  示例：{activeChain.sampleLabel}
-                </button>
-              </div>
-
-              <div className="mt-5 flex flex-col gap-3 md:flex-row">
-                <input
-                  value={addressInput}
-                  onChange={(event) => setAddressInput(event.target.value)}
-                  onKeyDown={(event) => event.key === 'Enter' && void queryAddress()}
-                  placeholder="0x..."
-                  className="h-12 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 font-mono text-sm outline-none transition focus:border-slate-950 focus:ring-4 focus:ring-slate-950/10"
-                />
-                <Button type="button" className="h-12 rounded-2xl px-5" onClick={() => queryAddress()} disabled={addressLoading}>
-                  {addressLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                  查询
-                </Button>
-              </div>
-              {addressError && <div className="mt-3 text-sm text-rose-600">{addressError}</div>}
+        <div className={cn(CARD, 'overflow-hidden')}>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4 md:p-5">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-500"><Coins className="h-4 w-4" /> 行情列表</div>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 md:text-2xl">主流币价格与涨跌幅</h2>
             </div>
+            <Button type="button" variant="outline" className="rounded-2xl" onClick={loadMarket} disabled={marketLoading}>
+              {marketLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+              刷新行情
+            </Button>
+          </div>
 
-            <div className="p-5">
-              {addressLoading && !addressProfile ? (
-                <div className="grid gap-3">
-                  <SkeletonLine className="h-6 w-40" />
-                  <SkeletonLine className="h-12 w-full" />
-                  <SkeletonLine className="h-20 w-full" />
-                </div>
-              ) : addressProfile ? (
-                <div className="grid gap-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950 p-4 text-white">
-                    <div className="min-w-0">
-                      <div className="text-xs uppercase tracking-[0.2em] text-white/50">Address</div>
-                      <div className="mt-1 break-all font-mono text-sm md:text-base">{addressProfile.address}</div>
-                    </div>
-                    <button type="button" onClick={copyAddress} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 hover:bg-white/15" aria-label="复制地址">
-                      {copied ? <BadgeCheck className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />}
-                    </button>
-                  </div>
+          {marketError && <div className="mx-4 mt-4 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-700 md:mx-5">{marketError}</div>}
 
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className={MUTED_CARD + ' p-4'}>
-                      <div className="flex items-center gap-2 text-sm text-slate-500"><CircleDollarSign className="h-4 w-4" /> 余额</div>
-                      <div className="mt-2 text-2xl font-semibold text-slate-950">{addressProfile.balance}</div>
-                      <div className="mt-1 text-sm text-slate-500">{addressProfile.balanceSymbol}</div>
+          <div className="border-b border-slate-100 p-4 md:p-5">
+            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
+              {marketLoading && focusCoins.length === 0
+                ? Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="min-w-[240px] rounded-[26px] border border-slate-100 bg-white p-4 md:min-w-0">
+                      <SkeletonLine className="h-10 w-32" />
+                      <SkeletonLine className="mt-6 h-8 w-36" />
+                      <SkeletonLine className="mt-4 h-12 w-full" />
                     </div>
-                    <div className={MUTED_CARD + ' p-4'}>
-                      <div className="flex items-center gap-2 text-sm text-slate-500"><ShieldCheck className="h-4 w-4" /> 地址类型</div>
-                      <div className="mt-2 text-2xl font-semibold text-slate-950">{addressProfile.isContract ? '合约' : '账户'}</div>
-                      <div className="mt-1 text-sm text-slate-500">eth_getCode</div>
-                    </div>
-                    <a href={addressProfile.explorerUrl} target="_blank" rel="noreferrer" className={cn(MUTED_CARD, 'group p-4 transition hover:border-slate-300 hover:bg-white')}>
-                      <div className="flex items-center gap-2 text-sm text-slate-500"><ArrowUpRight className="h-4 w-4" /> 浏览器</div>
-                      <div className="mt-2 text-2xl font-semibold text-slate-950">打开</div>
-                      <div className="mt-1 text-sm text-slate-500 group-hover:text-blue-600">{activeChain.shortName} Explorer</div>
-                    </a>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">输入地址后可以读取真实余额和合约状态。</div>
-              )}
+                  ))
+                : focusCoins.map((coin) => <FocusCoinCard key={coin.id} coin={coin} />)}
             </div>
           </div>
 
-          <div className="grid gap-5">
+          <div className="grid gap-2 p-4 md:p-5">
+            <div className="hidden grid-cols-[minmax(0,1.3fr)_0.85fr_0.75fr_0.75fr] px-4 text-xs font-medium text-slate-400 md:grid">
+              <span>币种</span><span>价格</span><span>24h</span><span>市值</span>
+            </div>
+            {marketLoading && marketCoins.length === 0
+              ? Array.from({ length: 8 }).map((_, index) => <SkeletonLine key={index} className="h-16 w-full rounded-2xl" />)
+              : marketCoins.map((coin) => <CoinRow key={coin.id} coin={coin} />)}
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+          <div className="grid gap-4">
             <WalletEnvironmentCard walletStatus={walletStatus} onConnect={connectWallet} connecting={walletConnecting} />
+            <ChainSnapshotCard
+              activeChain={activeChain}
+              snapshot={snapshot}
+              loading={snapshotLoading}
+              error={snapshotError}
+              onRefresh={loadSnapshot}
+              onChainChange={setActiveChainId}
+            />
+          </div>
 
-            <div className={cn(CARD, 'p-5')}>
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                <ShieldCheck className="h-4 w-4" /> 安全边界
-              </div>
-              <h3 className="mt-2 text-xl font-semibold text-slate-950">第一版只读，不触碰资产</h3>
-              <div className="mt-4 grid gap-2 text-sm text-slate-600">
-                {['不需要私钥或助记词', '不发起转账或授权', '不自动请求签名', '公共 RPC 只读取公开链上数据'].map((item) => (
+          <div className="grid gap-4">
+            <AddressQueryCard
+              activeChain={activeChain}
+              addressInput={addressInput}
+              setAddressInput={setAddressInput}
+              addressProfile={addressProfile}
+              loading={addressLoading}
+              error={addressError}
+              copied={copied}
+              onCopy={copyAddress}
+              onQuery={() => queryAddress()}
+              onUseSample={() => {
+                setAddressInput(activeChain.sampleAddress);
+                void queryAddress(activeChain.sampleAddress);
+              }}
+            />
+
+            <div className={cn(CARD, 'p-4 md:p-5')}>
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-500"><ShieldCheck className="h-4 w-4" /> 安全边界</div>
+              <h3 className="mt-1 text-lg font-semibold text-slate-950">行情与查询均为只读</h3>
+              <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+                {['不需要私钥或助记词', '不发起转账或授权', '不自动请求签名', '行情接口与公共 RPC 均免 Key'].map((item) => (
                   <div key={item} className="flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-2">
                     <BadgeCheck className="h-4 w-4 text-emerald-600" /> {item}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className={cn(CARD, 'overflow-hidden p-5')}>
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                <Activity className="h-4 w-4" /> 技术栈预留
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                {['Public RPC', 'JSON-RPC', 'Wallet Provider', 'shadcn 风格', '后续 wagmi', '后续 viem'].map((item) => (
-                  <span key={item} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-center text-slate-600">{item}</span>
                 ))}
               </div>
             </div>
