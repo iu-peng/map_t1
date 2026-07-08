@@ -7,7 +7,6 @@ import {
   BarChart3,
   ChevronDown,
   CircleDollarSign,
-  Coins,
   Copy,
   DatabaseZap,
   Gauge,
@@ -20,7 +19,6 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
-  Wifi,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -221,6 +219,13 @@ function getEthereumProvider() {
   return window.ethereum;
 }
 
+function getPriceRangePercent(coin: CoinMarket) {
+  const range = coin.high_24h - coin.low_24h;
+  if (!Number.isFinite(range) || range <= 0) return 50;
+  const value = ((coin.current_price - coin.low_24h) / range) * 100;
+  return Math.min(100, Math.max(0, value));
+}
+
 async function fetchMarkets(): Promise<CoinMarket[]> {
   const params = new URLSearchParams({
     vs_currency: 'usd',
@@ -328,8 +333,8 @@ function ChangeBadge({ value, label, compact = false }: { value?: number | null;
 function Sparkline({ prices, change }: { prices?: number[]; change?: number | null }) {
   const points = useMemo(() => {
     if (!prices || prices.length < 2) return '';
-    const width = 180;
-    const height = 54;
+    const width = 220;
+    const height = 64;
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     const range = max - min || 1;
@@ -343,7 +348,7 @@ function Sparkline({ prices, change }: { prices?: number[]; change?: number | nu
   }, [prices]);
 
   return (
-    <svg viewBox="0 0 180 54" className="h-12 w-full overflow-visible" role="img" aria-label="7日趋势">
+    <svg viewBox="0 0 220 64" className="h-16 w-full overflow-visible" role="img" aria-label="7日趋势">
       <polyline
         points={points}
         fill="none"
@@ -378,90 +383,87 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CoinMarketCard({ coin, expanded, onToggle }: { coin: CoinMarket; expanded: boolean; onToggle: () => void }) {
+function CoinMarketRow({ coin, expanded, onToggle }: { coin: CoinMarket; expanded: boolean; onToggle: () => void }) {
+  const rangePercent = getPriceRangePercent(coin);
+
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={cn(
-        'min-w-[278px] rounded-[26px] border bg-white text-left shadow-[0_14px_42px_rgba(15,23,42,0.08)] transition-all hover:-translate-y-0.5 md:min-w-0',
-        expanded ? 'border-slate-950 ring-4 ring-slate-950/8' : 'border-white/80 hover:border-slate-200',
-      )}
-    >
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
+    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition hover:border-slate-200">
+      <button type="button" onClick={onToggle} className="w-full px-3 py-3 text-left md:px-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:grid-cols-[minmax(0,1.25fr)_0.85fr_0.7fr_0.7fr_0.78fr_0.78fr_auto]">
           <div className="flex min-w-0 items-center gap-3">
-            <img src={coin.image} alt="" className="h-11 w-11 shrink-0 rounded-full" />
+            <img src={coin.image} alt="" className="h-9 w-9 rounded-full" />
             <div className="min-w-0">
-              <div className="truncate text-base font-semibold text-slate-950">{coin.name}</div>
-              <div className="mt-0.5 text-xs uppercase text-slate-400">#{coin.market_cap_rank} · {coin.symbol}</div>
+              <div className="truncate text-sm font-semibold text-slate-950 md:text-base">{coin.name}</div>
+              <div className="text-xs uppercase text-slate-400">#{coin.market_cap_rank} · {coin.symbol}</div>
             </div>
           </div>
-          <ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400 transition-transform', expanded && 'rotate-180')} />
-        </div>
-
-        <div className="mt-4 flex items-end justify-between gap-3">
-          <div>
-            <div className="text-2xl font-semibold tracking-tight text-slate-950">{formatCurrency(coin.current_price, coin.current_price > 100 ? 0 : 2)}</div>
-            <div className="mt-1 text-xs text-slate-500">24h 量 {formatCompactCurrency(coin.total_volume)}</div>
+          <div className="text-right md:text-left">
+            <div className="text-sm font-semibold text-slate-950 md:text-base">{formatCurrency(coin.current_price, coin.current_price > 100 ? 0 : 2)}</div>
+            <div className="mt-1 text-[11px] text-slate-400 md:hidden">量 {formatCompactCurrency(coin.total_volume)}</div>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <ChangeBadge value={coin.price_change_percentage_24h} label="24h" compact />
-            <ChangeBadge value={coin.price_change_percentage_7d_in_currency} label="7d" compact />
-          </div>
+          <div className="hidden md:block"><ChangeBadge value={coin.price_change_percentage_24h} compact /></div>
+          <div className="hidden md:block"><ChangeBadge value={coin.price_change_percentage_7d_in_currency} compact /></div>
+          <div className="hidden text-sm font-medium text-slate-700 md:block">{formatCompactCurrency(coin.total_volume)}</div>
+          <div className="hidden text-sm font-medium text-slate-700 md:block">{formatCompactCurrency(coin.market_cap)}</div>
+          <ChevronDown className={cn('hidden h-4 w-4 justify-self-end text-slate-400 transition-transform md:block', expanded && 'rotate-180')} />
         </div>
-
-        <div className="mt-3">
-          <Sparkline prices={coin.sparkline_in_7d?.price} change={coin.price_change_percentage_7d_in_currency} />
+        <div className="mt-3 grid grid-cols-3 gap-2 md:hidden">
+          <div><ChangeBadge value={coin.price_change_percentage_24h} label="24h" compact /></div>
+          <div><ChangeBadge value={coin.price_change_percentage_7d_in_currency} label="7d" compact /></div>
+          <div className="text-right text-xs font-medium text-slate-500">市值 {formatCompactCurrency(coin.market_cap)}</div>
         </div>
-      </div>
+      </button>
 
       <div className={cn('grid overflow-hidden border-t border-slate-100 transition-[grid-template-rows]', expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
         <div className="min-h-0 overflow-hidden">
-          <div className="grid grid-cols-2 gap-2 p-4 pt-3 md:grid-cols-3">
-            <DetailItem label="1h 涨跌" value={formatPercent(coin.price_change_percentage_1h_in_currency)} />
-            <DetailItem label="24h 涨跌" value={formatPercent(coin.price_change_percentage_24h)} />
-            <DetailItem label="7d 涨跌" value={formatPercent(coin.price_change_percentage_7d_in_currency)} />
-            <DetailItem label="市值" value={formatCompactCurrency(coin.market_cap)} />
-            <DetailItem label="24h 成交量" value={formatCompactCurrency(coin.total_volume)} />
-            <DetailItem label="24h 高 / 低" value={`${formatCurrency(coin.high_24h, 2)} / ${formatCurrency(coin.low_24h, 2)}`} />
-            <DetailItem label="流通供应" value={formatNumber(coin.circulating_supply)} />
-            <DetailItem label="总供应" value={formatNumber(coin.total_supply)} />
-            <DetailItem label="最大供应" value={formatNumber(coin.max_supply)} />
-            <DetailItem label="ATH" value={formatCurrency(coin.ath, 2)} />
-            <DetailItem label="距 ATH" value={formatPercent(coin.ath_change_percentage)} />
-            <DetailItem label="更新时间" value={formatUpdatedAt(coin.last_updated)} />
+          <div className="grid gap-3 p-3 md:grid-cols-[0.72fr_1.28fr] md:p-4">
+            <div className="rounded-2xl bg-slate-950 p-3 text-white md:p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs text-white/50">7日趋势</div>
+                  <div className="mt-1 text-lg font-semibold">{coin.symbol.toUpperCase()}</div>
+                </div>
+                <ChangeBadge value={coin.price_change_percentage_7d_in_currency} compact />
+              </div>
+              <div className="mt-3 rounded-2xl bg-white/8 px-2 py-2">
+                <Sparkline prices={coin.sparkline_in_7d?.price} change={coin.price_change_percentage_7d_in_currency} />
+              </div>
+              <div className="mt-3">
+                <div className="mb-1 flex justify-between text-[11px] text-white/45">
+                  <span>24h 低 {formatCurrency(coin.low_24h, 2)}</span>
+                  <span>高 {formatCurrency(coin.high_24h, 2)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-white/12">
+                  <div className="h-2 rounded-full bg-white" style={{ width: `${rangePercent}%` }} />
+                </div>
+                <div className="mt-1 text-[11px] text-white/45">当前价格位于 24h 区间约 {rangePercent.toFixed(0)}%</div>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="grid grid-cols-3 gap-2">
+                <DetailItem label="1h" value={formatPercent(coin.price_change_percentage_1h_in_currency)} />
+                <DetailItem label="24h" value={formatPercent(coin.price_change_percentage_24h)} />
+                <DetailItem label="7d" value={formatPercent(coin.price_change_percentage_7d_in_currency)} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                <DetailItem label="市值排名" value={`#${coin.market_cap_rank}`} />
+                <DetailItem label="市值" value={formatCompactCurrency(coin.market_cap)} />
+                <DetailItem label="24h 成交量" value={formatCompactCurrency(coin.total_volume)} />
+                <DetailItem label="当前价格" value={formatCurrency(coin.current_price, coin.current_price > 100 ? 0 : 2)} />
+                <DetailItem label="24h 最高" value={formatCurrency(coin.high_24h, 2)} />
+                <DetailItem label="24h 最低" value={formatCurrency(coin.low_24h, 2)} />
+                <DetailItem label="流通供应" value={formatNumber(coin.circulating_supply)} />
+                <DetailItem label="总供应" value={formatNumber(coin.total_supply)} />
+                <DetailItem label="最大供应" value={formatNumber(coin.max_supply)} />
+                <DetailItem label="ATH" value={formatCurrency(coin.ath, 2)} />
+                <DetailItem label="距 ATH" value={formatPercent(coin.ath_change_percentage)} />
+                <DetailItem label="更新时间" value={formatUpdatedAt(coin.last_updated)} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </button>
-  );
-}
-
-function CompactCoinRow({ coin, expanded, onToggle }: { coin: CoinMarket; expanded: boolean; onToggle: () => void }) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-      <button type="button" onClick={onToggle} className="grid w-full grid-cols-[minmax(0,1.3fr)_0.85fr_0.65fr_0.65fr_auto] items-center gap-3 px-3 py-3 text-left md:px-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <img src={coin.image} alt="" className="h-8 w-8 rounded-full" />
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-slate-950">{coin.name}</div>
-            <div className="text-xs uppercase text-slate-400">#{coin.market_cap_rank} · {coin.symbol}</div>
-          </div>
-        </div>
-        <div className="text-sm font-semibold text-slate-950">{formatCurrency(coin.current_price, coin.current_price > 100 ? 0 : 2)}</div>
-        <ChangeBadge value={coin.price_change_percentage_24h} compact />
-        <ChangeBadge value={coin.price_change_percentage_7d_in_currency} compact />
-        <ChevronDown className={cn('h-4 w-4 text-slate-400 transition-transform', expanded && 'rotate-180')} />
-      </button>
-      {expanded ? (
-        <div className="grid grid-cols-2 gap-2 border-t border-slate-100 p-3 text-sm md:grid-cols-4">
-          <DetailItem label="市值" value={formatCompactCurrency(coin.market_cap)} />
-          <DetailItem label="24h 成交量" value={formatCompactCurrency(coin.total_volume)} />
-          <DetailItem label="24h 高" value={formatCurrency(coin.high_24h, 2)} />
-          <DetailItem label="24h 低" value={formatCurrency(coin.low_24h, 2)} />
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -640,8 +642,7 @@ export function WalletModule() {
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState('');
   const [marketUpdatedAt, setMarketUpdatedAt] = useState('');
-  const [expandedCoinId, setExpandedCoinId] = useState<string | null>('bitcoin');
-  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>('bitcoin');
   const [addressInput, setAddressInput] = useState(DEFAULT_ADDRESS);
   const [addressProfile, setAddressProfile] = useState<AddressProfile | null>(null);
   const [addressError, setAddressError] = useState('');
@@ -664,14 +665,14 @@ export function WalletModule() {
     try {
       const coins = await fetchMarkets();
       setMarketCoins(coins);
-      if (!expandedCoinId) setExpandedCoinId(coins[0]?.id || null);
+      if (!expandedRowId) setExpandedRowId(coins[0]?.id || null);
       setMarketUpdatedAt(new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (error) {
       setMarketError((error as Error).message || '行情读取失败');
     } finally {
       setMarketLoading(false);
     }
-  }, [expandedCoinId]);
+  }, [expandedRowId]);
 
   const loadSnapshot = useCallback(async () => {
     setSnapshotLoading(true);
@@ -752,63 +753,38 @@ export function WalletModule() {
   return (
     <section className="h-full min-h-0 overflow-auto bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_30%),linear-gradient(135deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)] px-0 py-0 pb-[calc(80px+env(safe-area-inset-bottom))] md:pb-0">
       <div className="flex w-full flex-col gap-3 md:gap-4">
-        <div className="relative overflow-hidden bg-slate-950 px-4 py-5 text-white shadow-[0_24px_80px_rgba(15,23,42,0.24)] md:px-6 md:py-6">
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900" />
-          <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-400/25 blur-3xl" />
-          <div className="absolute -bottom-20 left-12 h-56 w-56 rounded-full bg-violet-400/20 blur-3xl" />
-          <div className="relative flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="bg-slate-950 px-3 py-3 text-white shadow-[0_18px_56px_rgba(15,23,42,0.22)] md:px-5 md:py-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-3 py-1 text-xs backdrop-blur md:text-sm">
-                <Coins className="h-4 w-4" /> 主流币行情 · 点击卡片展开详情
-              </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">钱包</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/72 md:text-base">
-                集中展示价格、24h / 7d 涨跌、成交量、市值、排名、高低价和 7 日趋势。无需钱包、无需 Key。
-              </p>
+              <div className="text-xs text-white/50">钱包 · 主流币行情</div>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">集中行情列表</h1>
             </div>
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:w-[620px]">
-              <div className="rounded-2xl bg-white/12 p-3">
-                <div className="text-xs text-white/55">BTC</div>
-                <div className="mt-1 text-lg font-semibold">{btc ? formatCurrency(btc.current_price, 0) : '-'}</div>
-                <div className="mt-1"><ChangeBadge value={btc?.price_change_percentage_24h} compact /></div>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:w-[640px]">
+              <div className="rounded-2xl bg-white/10 px-3 py-2">
+                <div className="text-xs text-white/50">BTC</div>
+                <div className="mt-0.5 text-base font-semibold">{btc ? formatCurrency(btc.current_price, 0) : '-'}</div>
               </div>
-              <div className="rounded-2xl bg-white/12 p-3">
-                <div className="text-xs text-white/55">ETH</div>
-                <div className="mt-1 text-lg font-semibold">{eth ? formatCurrency(eth.current_price, 0) : '-'}</div>
-                <div className="mt-1"><ChangeBadge value={eth?.price_change_percentage_24h} compact /></div>
+              <div className="rounded-2xl bg-white/10 px-3 py-2">
+                <div className="text-xs text-white/50">ETH</div>
+                <div className="mt-0.5 text-base font-semibold">{eth ? formatCurrency(eth.current_price, 0) : '-'}</div>
               </div>
-              <div className="rounded-2xl bg-white/12 p-3">
-                <div className="text-xs text-white/55">24h 成交量</div>
-                <div className="mt-1 text-lg font-semibold">{formatCompactCurrency(totalVolume24h)}</div>
-                <div className="mt-1 text-xs text-white/50">观察列表合计</div>
+              <div className="rounded-2xl bg-white/10 px-3 py-2">
+                <div className="text-xs text-white/50">24h 成交量</div>
+                <div className="mt-0.5 text-base font-semibold">{formatCompactCurrency(totalVolume24h)}</div>
               </div>
-              <div className="rounded-2xl bg-white/12 p-3">
-                <div className="text-xs text-white/55">市场情绪</div>
-                <div className="mt-1 text-lg font-semibold">{marketMood}</div>
-                <div className="mt-1 text-xs text-white/50">更新 {marketUpdatedAt || '-'}</div>
+              <div className="rounded-2xl bg-white/10 px-3 py-2">
+                <div className="text-xs text-white/50">市场情绪</div>
+                <div className="mt-0.5 text-base font-semibold">{marketMood}</div>
               </div>
             </div>
           </div>
         </div>
-
-        <div className="grid gap-2 px-3 md:grid-cols-4 md:px-4 xl:px-5">
-          <MetricTile icon={CircleDollarSign} label="BTC 价格" value={btc ? formatCurrency(btc.current_price, 0) : '-'} hint="Bitcoin / USD" />
-          <MetricTile icon={LineChart} label="ETH 价格" value={eth ? formatCurrency(eth.current_price, 0) : '-'} hint="Ethereum / USD" />
-          <MetricTile icon={BarChart3} label="观察总市值" value={formatCompactCurrency(totalMarketCap)} hint="主流币合计" />
-          <MetricTile icon={Activity} label="24h 成交量" value={formatCompactCurrency(totalVolume24h)} hint="主流币合计" />
-        </div>
-
-        {marketError ? (
-          <div className="mx-3 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 md:mx-4 xl:mx-5">
-            <AlertTriangle className="h-4 w-4" /> {marketError}
-          </div>
-        ) : null}
 
         <div className={cn(CARD, 'mx-0 overflow-hidden rounded-none border-x-0 md:mx-4 md:rounded-[28px] md:border-x xl:mx-5')}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 md:px-5 md:py-4">
             <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-500"><Coins className="h-4 w-4" /> 币种卡片</div>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 md:text-2xl">点击卡片展开 / 收起详情</h2>
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-500"><BarChart3 className="h-4 w-4" /> 行情列表</div>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">价格 / 涨跌幅 / 成交量 / 市值</h2>
             </div>
             <Button type="button" variant="outline" className="rounded-2xl" onClick={loadMarket} disabled={marketLoading}>
               {marketLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
@@ -816,46 +792,34 @@ export function WalletModule() {
             </Button>
           </div>
 
-          <div className="px-3 py-3 md:px-5 md:py-4">
-            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 md:grid md:grid-cols-2 md:overflow-visible md:px-0 lg:grid-cols-3 xl:grid-cols-4">
-              {marketLoading && marketCoins.length === 0
-                ? Array.from({ length: 8 }).map((_, index) => (
-                    <div key={index} className="min-w-[278px] rounded-[26px] border border-slate-100 bg-white p-4 md:min-w-0">
-                      <SkeletonLine className="h-10 w-32" />
-                      <SkeletonLine className="mt-6 h-8 w-36" />
-                      <SkeletonLine className="mt-4 h-12 w-full" />
-                    </div>
-                  ))
-                : marketCoins.map((coin) => (
-                    <CoinMarketCard
-                      key={coin.id}
-                      coin={coin}
-                      expanded={expandedCoinId === coin.id}
-                      onToggle={() => setExpandedCoinId((prev) => (prev === coin.id ? null : coin.id))}
-                    />
-                  ))}
+          {marketError ? (
+            <div className="mx-3 mt-3 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 md:mx-5">
+              <AlertTriangle className="h-4 w-4" /> {marketError}
             </div>
+          ) : null}
+
+          <div className="grid gap-2 px-3 py-3 md:px-5 md:py-4">
+            <div className="hidden grid-cols-[minmax(0,1.25fr)_0.85fr_0.7fr_0.7fr_0.78fr_0.78fr_auto] px-4 text-xs font-medium text-slate-400 md:grid">
+              <span>币种</span><span>价格</span><span>24h</span><span>7d</span><span>成交量</span><span>市值</span><span />
+            </div>
+            {marketLoading && marketCoins.length === 0
+              ? Array.from({ length: 10 }).map((_, index) => <SkeletonLine key={index} className="h-[76px] w-full rounded-2xl" />)
+              : marketCoins.map((coin) => (
+                  <CoinMarketRow
+                    key={coin.id}
+                    coin={coin}
+                    expanded={expandedRowId === coin.id}
+                    onToggle={() => setExpandedRowId((prev) => (prev === coin.id ? null : coin.id))}
+                  />
+                ))}
           </div>
         </div>
 
-        <div className={cn(CARD, 'mx-0 overflow-hidden rounded-none border-x-0 md:mx-4 md:rounded-[28px] md:border-x xl:mx-5')}>
-          <div className="border-b border-slate-100 px-3 py-3 md:px-5 md:py-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-500"><BarChart3 className="h-4 w-4" /> 集中列表</div>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">价格 / 24h / 7d 快速扫读</h2>
-          </div>
-          <div className="grid gap-2 px-3 py-3 md:px-5 md:py-4">
-            <div className="hidden grid-cols-[minmax(0,1.3fr)_0.85fr_0.65fr_0.65fr_auto] px-4 text-xs font-medium text-slate-400 md:grid">
-              <span>币种</span><span>价格</span><span>24h</span><span>7d</span><span />
-            </div>
-            {marketCoins.map((coin) => (
-              <CompactCoinRow
-                key={coin.id}
-                coin={coin}
-                expanded={expandedRowId === coin.id}
-                onToggle={() => setExpandedRowId((prev) => (prev === coin.id ? null : coin.id))}
-              />
-            ))}
-          </div>
+        <div className="grid gap-2 px-3 md:grid-cols-4 md:px-4 xl:px-5">
+          <MetricTile icon={CircleDollarSign} label="BTC 价格" value={btc ? formatCurrency(btc.current_price, 0) : '-'} hint="Bitcoin / USD" />
+          <MetricTile icon={LineChart} label="ETH 价格" value={eth ? formatCurrency(eth.current_price, 0) : '-'} hint="Ethereum / USD" />
+          <MetricTile icon={BarChart3} label="观察总市值" value={formatCompactCurrency(totalMarketCap)} hint="主流币合计" />
+          <MetricTile icon={Activity} label="24h 成交量" value={formatCompactCurrency(totalVolume24h)} hint={`更新 ${marketUpdatedAt || '-'}`} />
         </div>
 
         <div className="grid gap-3 px-3 md:grid-cols-2 md:px-4 xl:grid-cols-[0.8fr_1.2fr] xl:px-5">
